@@ -1,4 +1,4 @@
- package com.win11calc.view;
+package com.win11calc.view;
 
 import com.win11calc.controller.CalculatorController;
 import com.win11calc.model.CalculatorModel;
@@ -24,7 +24,7 @@ public class CalculatorFrame extends JFrame {
     private JMenuBar menuBar;
     private JPanel displayPanel;
     private JLabel expressionLabel;
-    private JLabel displayLabel;
+    private JLabel resultLabel;
     
     private JPanel standardPanel;
     private JPanel scientificPanel;
@@ -86,7 +86,7 @@ public class CalculatorFrame extends JFrame {
             if (newColor != null) {
                 ColorScheme.BACKGROUND = newColor;
                 displayPanel.setBackground(ColorScheme.DISPLAY_BACKGROUND);
-                displayLabel.setForeground(ColorScheme.DISPLAY_TEXT);
+                resultLabel.setForeground(ColorScheme.DISPLAY_TEXT);
                 expressionLabel.setForeground(ColorScheme.EXPRESSION_TEXT);
                 for (Component component : standardPanel.getComponents()) {
                     if (component instanceof RoundedButton) {
@@ -178,22 +178,22 @@ public class CalculatorFrame extends JFrame {
         // 表达式显示标签
         expressionLabel = new JLabel("");
         expressionLabel.setForeground(ColorScheme.EXPRESSION_TEXT);
-        expressionLabel.setFont(new Font("Microsoft YaHei", Font.PLAIN, 14));
+        expressionLabel.setFont(new Font("Microsoft YaHei", Font.PLAIN, 18));
         expressionLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         expressionLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         
-        // 结果显示标签
-        displayLabel = new JLabel("0");
-        displayLabel.setForeground(ColorScheme.DISPLAY_TEXT);
-        displayLabel.setFont(new Font("Microsoft YaHei", Font.BOLD, 60));
-        displayLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        displayLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        // 结果显示标签（修改名称以符合新逻辑）
+        resultLabel = new JLabel("0");
+        resultLabel.setForeground(ColorScheme.DISPLAY_TEXT);
+        resultLabel.setFont(new Font("Microsoft YaHei", Font.BOLD, 60));
+        resultLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        resultLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         
         // 添加标签到显示面板
         displayPanel.add(Box.createVerticalGlue());
         displayPanel.add(expressionLabel);
         displayPanel.add(Box.createVerticalStrut(10));
-        displayPanel.add(displayLabel);
+        displayPanel.add(resultLabel);
     }
 
     
@@ -217,13 +217,13 @@ public class CalculatorFrame extends JFrame {
         addButton(panel, "xʸ", e -> controller.calculatePower(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "lg", e -> controller.calculateLog10(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "ln", e -> controller.calculateLn(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "(", e -> controller.addDigit("("), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, ")", e -> controller.addDigit(")"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "(", e -> controller.addLeftParenthesis(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, ")", e -> controller.addRightParenthesis(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         
         // 第三行按钮 (√x, AC, ⌫, %, ÷)
         addButton(panel, "√x", e -> controller.calculateSquareRoot(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "AC", e -> controller.clear(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "⌫", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "<-", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "%", e -> controller.calculatePercent(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "÷", e -> controller.setOperation(CalculatorOperation.DIVIDE), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
@@ -277,13 +277,13 @@ public class CalculatorFrame extends JFrame {
         addButton(panel, "xʸ", e -> controller.calculatePower(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "lg", e -> controller.calculateLog10(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "ln", e -> controller.calculateLn(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "(", e -> controller.addDigit("("), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, ")", e -> controller.addDigit(")"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "(", e -> controller.addLeftParenthesis(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, ")", e -> controller.addRightParenthesis(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         
         // 第三行按钮
         addButton(panel, "√x", e -> controller.calculateSquareRoot(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "AC", e -> controller.clear(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "⌫", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "<-", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "%", e -> controller.calculatePercent(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "÷", e -> controller.setOperation(CalculatorOperation.DIVIDE), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
@@ -419,6 +419,15 @@ public class CalculatorFrame extends JFrame {
                     case KeyEvent.VK_ESCAPE:
                         controller.clear();
                         break;
+                    // 添加括号支持
+                    case KeyEvent.VK_OPEN_BRACKET:
+                    case KeyEvent.VK_LEFT_PARENTHESIS:
+                        controller.addLeftParenthesis();
+                        break;
+                    case KeyEvent.VK_CLOSE_BRACKET:
+                    case KeyEvent.VK_RIGHT_PARENTHESIS:
+                        controller.addRightParenthesis();
+                        break;
                 }
             }
         });
@@ -432,17 +441,31 @@ public class CalculatorFrame extends JFrame {
      * 设置默认显示
      */
     private void setDefaultDisplay() {
-        updateDisplay("0", "");
+        updateDisplay("0", "", "");
     }
     
     /**
      * 更新显示
      * @param input 输入值
      * @param expression 表达式
+     * @param result 计算结果
      */
-    public void updateDisplay(String input, String expression) {
-        displayLabel.setText(input);
-        expressionLabel.setText(expression);
+    public void updateDisplay(String input, String expression, String result) {
+        // 检查是否显示错误信息
+        if (expression.equals("错误")) {
+            // 如果是错误信息，显示在结果区
+            resultLabel.setText(input);
+            expressionLabel.setText(expression);
+        } else if (expression.isEmpty()) {
+            // 空表达式时
+            expressionLabel.setText("");
+            resultLabel.setText(input);
+        } else {
+            // 正常表达式模式下，上方显示表达式，下方显示计算结果
+            expressionLabel.setText(expression);
+            // 如果有计算结果就显示结果，否则显示当前输入
+            resultLabel.setText(result.isEmpty() ? input : result);
+        }
     }
     
     /**

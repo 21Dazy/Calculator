@@ -22,6 +22,17 @@ public class CalculatorController {
     }
     
     /**
+     * 更新视图
+     */
+    private void updateView() {
+        view.updateDisplay(
+            model.getCurrentInput(),
+            model.getExpression(),
+            model.getCurrentResult()
+        );
+    }
+    
+    /**
      * 添加数字
      * @param digit 数字字符
      */
@@ -52,6 +63,22 @@ public class CalculatorController {
      */
     public void setOperation(CalculatorOperation operation) {
         model.setOperation(operation);
+        updateView();
+    }
+    
+    /**
+     * 添加左括号
+     */
+    public void addLeftParenthesis() {
+        model.addLeftParenthesis();
+        updateView();
+    }
+    
+    /**
+     * 添加右括号
+     */
+    public void addRightParenthesis() {
+        model.addRightParenthesis();
         updateView();
     }
     
@@ -97,7 +124,7 @@ public class CalculatorController {
     
     /**
      * 计算三角函数
-     * @param type 三角函数类型 (sin, cos, tan)
+     * @param type 三角函数类型
      */
     public void calculateTrigFunction(String type) {
         model.calculateTrigFunction(type);
@@ -105,7 +132,7 @@ public class CalculatorController {
     }
     
     /**
-     * 使用圆周率 Pi
+     * 使用圆周率
      */
     public void usePi() {
         model.usePi();
@@ -129,7 +156,7 @@ public class CalculatorController {
     }
     
     /**
-     * 计算对数 (lg - 常用对数)
+     * 计算常用对数
      */
     public void calculateLog10() {
         model.calculateLog10();
@@ -137,7 +164,7 @@ public class CalculatorController {
     }
     
     /**
-     * 计算自然对数 (ln)
+     * 计算自然对数
      */
     public void calculateLn() {
         model.calculateLn();
@@ -145,18 +172,10 @@ public class CalculatorController {
     }
     
     /**
-     * 计算幂 (x^y)
+     * 计算幂
      */
     public void calculatePower() {
         model.calculatePower();
-        updateView();
-    }
-    
-    /**
-     * 完成幂运算
-     */
-    public void completePowerCalculation() {
-        model.completePowerCalculation();
         updateView();
     }
     
@@ -189,6 +208,7 @@ public class CalculatorController {
      */
     public void memoryStore() {
         model.memoryStore();
+        updateView();
     }
     
     /**
@@ -196,6 +216,7 @@ public class CalculatorController {
      */
     public void memoryAdd() {
         model.memoryAdd();
+        updateView();
     }
     
     /**
@@ -203,6 +224,7 @@ public class CalculatorController {
      */
     public void memorySubtract() {
         model.memorySubtract();
+        updateView();
     }
     
     /**
@@ -218,12 +240,6 @@ public class CalculatorController {
      */
     public void memoryClear() {
         model.memoryClear();
-    }
-    
-    /**
-     * 更新视图
-     */
-    private void updateView() {
-        view.updateDisplay(model.getCurrentInput(), model.getExpression());
+        updateView();
     }
 } 
