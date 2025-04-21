@@ -16,6 +16,7 @@ public class CalculatorModel {
     private List<String> history = new ArrayList<>();
     private CalculatorOperation currentOperation = null;
     private double leftOperand = 0;
+    private boolean isPowerOperation = false; // 标记是否为幂运算
 
     private List<String> rpnExpression = new ArrayList<>();
     
@@ -120,7 +121,10 @@ public class CalculatorModel {
         }
         
         try {
-            if (currentOperation != null) {
+            if (isPowerOperation) {
+                completePowerCalculation();
+                isPowerOperation = false;
+            } else if (currentOperation != null) {
                 calculateResult();
             } else {
                 leftOperand = Double.parseDouble(currentInput);
@@ -144,6 +148,13 @@ public class CalculatorModel {
         }
         
         try {
+            // 如果是幂运算状态，则调用幂运算方法
+            if (isPowerOperation) {
+                completePowerCalculation();
+                isPowerOperation = false;
+                return;
+            }
+            
             double rightOperand = Double.parseDouble(currentInput);
             
             if (currentOperation != null) {
@@ -302,6 +313,157 @@ public class CalculatorModel {
                 currentInput = formatNumber(result);
                 history.add(expression);
                 isNewInput = true;
+            } catch (Exception e) {
+                setErrorState("计算错误");
+            }
+        }
+    }
+    
+    /**
+     * 使用圆周率 Pi
+     */
+    public void usePi() {
+        if (errorState) {
+            clear();
+        }
+        currentInput = formatNumber(Math.PI);
+        isNewInput = true;
+    }
+    
+    /**
+     * 使用自然常数 e
+     */
+    public void useE() {
+        if (errorState) {
+            clear();
+        }
+        currentInput = formatNumber(Math.E);
+        isNewInput = true;
+    }
+    
+    /**
+     * 计算阶乘
+     */
+    public void calculateFactorial() {
+        if (!errorState) {
+            try {
+                double value = Double.parseDouble(currentInput);
+                
+                // 检查是否为非负整数
+                if (value < 0 || value != Math.floor(value)) {
+                    setErrorState("阶乘只适用于非负整数");
+                    return;
+                }
+                
+                // 计算阶乘
+                double result = 1;
+                for (int i = 2; i <= value; i++) {
+                    result *= i;
+                    // 检查溢出
+                    if (Double.isInfinite(result)) {
+                        setErrorState("结果太大");
+                        return;
+                    }
+                }
+                
+                expression = formatNumber(value) + "! = " + formatNumber(result);
+                currentInput = formatNumber(result);
+                history.add(expression);
+                isNewInput = true;
+            } catch (Exception e) {
+                setErrorState("计算错误");
+            }
+        }
+    }
+    
+    /**
+     * 计算对数 (lg - 常用对数)
+     */
+    public void calculateLog10() {
+        if (!errorState) {
+            try {
+                double value = Double.parseDouble(currentInput);
+                
+                if (value <= 0) {
+                    setErrorState("必须为正数");
+                    return;
+                }
+                
+                double result = Math.log10(value);
+                expression = "lg(" + formatNumber(value) + ") = " + formatNumber(result);
+                currentInput = formatNumber(result);
+                history.add(expression);
+                isNewInput = true;
+            } catch (Exception e) {
+                setErrorState("计算错误");
+            }
+        }
+    }
+    
+    /**
+     * 计算自然对数 (ln)
+     */
+    public void calculateLn() {
+        if (!errorState) {
+            try {
+                double value = Double.parseDouble(currentInput);
+                
+                if (value <= 0) {
+                    setErrorState("必须为正数");
+                    return;
+                }
+                
+                double result = Math.log(value);
+                expression = "ln(" + formatNumber(value) + ") = " + formatNumber(result);
+                currentInput = formatNumber(result);
+                history.add(expression);
+                isNewInput = true;
+            } catch (Exception e) {
+                setErrorState("计算错误");
+            }
+        }
+    }
+    
+    /**
+     * 计算幂 (x^y)
+     */
+    public void calculatePower() {
+        if (errorState) {
+            return;
+        }
+        
+        try {
+            leftOperand = Double.parseDouble(currentInput);
+            currentOperation = null;
+            expression = formatNumber(leftOperand) + "^";
+            isNewInput = true;
+            isPowerOperation = true; // 设置幂运算状态为true
+        } catch (Exception e) {
+            setErrorState("操作错误");
+        }
+    }
+    
+    /**
+     * 完成幂运算
+     */
+    public void completePowerCalculation() {
+        if (!errorState) {
+            try {
+                double base = leftOperand;
+                double exponent = Double.parseDouble(currentInput);
+                
+                double result = Math.pow(base, exponent);
+                
+                if (Double.isInfinite(result) || Double.isNaN(result)) {
+                    setErrorState("结果无效");
+                    return;
+                }
+                
+                expression = formatNumber(base) + "^" + formatNumber(exponent) + " = " + formatNumber(result);
+                currentInput = formatNumber(result);
+                history.add(expression);
+                isNewInput = true;
+                isPowerOperation = false; // 重置幂运算状态
             } catch (Exception e) {
                 setErrorState("计算错误");
             }

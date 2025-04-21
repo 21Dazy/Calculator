@@ -7,10 +7,10 @@ import java.awt.Color;
  */
 public class ColorScheme {
     // 主背景色
-    public static Color BACKGROUND = new Color(32, 32, 32);
+    public static Color BACKGROUND = new Color(0, 0, 0);
     
     // 显示区域背景色
-    public static final Color DISPLAY_BACKGROUND = new Color(48, 48, 48);
+    public static final Color DISPLAY_BACKGROUND = new Color(0, 0, 0);
     
     // 显示文本颜色
     public static final Color DISPLAY_TEXT = Color.WHITE;
@@ -21,10 +21,10 @@ public class ColorScheme {
     public static final Color EQUALS_BUTTON_TEXT = Color.WHITE;
     
     // 数字按钮背景色
-    public static final Color NUMBER_BUTTON_BACKGROUND = new Color(60, 60, 60);
+    public static final Color NUMBER_BUTTON_BACKGROUND = new Color(48, 48, 48);
     
     // 功能按钮背景色
-    public static final Color FUNCTION_BUTTON_BACKGROUND = new Color(50, 50, 50);
+    public static final Color FUNCTION_BUTTON_BACKGROUND = new Color(33, 33, 33);
     
     // 操作按钮背景色
     public static final Color OPERATION_BUTTON_BACKGROUND = new Color(255, 153, 0);
@@ -33,6 +33,6 @@ public class ColorScheme {
     public static final Color EQUALS_BUTTON_BACKGROUND = new Color(255, 153, 0);
     
     // 内存按钮背景色
-    public static final Color MEMORY_BUTTON_BACKGROUND = new Color(50, 50, 50);
+    public static final Color MEMORY_BUTTON_BACKGROUND = new Color(33, 33, 33);
 
 } 

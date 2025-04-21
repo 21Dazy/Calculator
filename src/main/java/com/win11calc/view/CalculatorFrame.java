@@ -1,4 +1,4 @@
-package com.win11calc.view;
+ package com.win11calc.view;
 
 import com.win11calc.controller.CalculatorController;
 import com.win11calc.model.CalculatorModel;
@@ -125,8 +125,8 @@ public class CalculatorFrame extends JFrame {
     private void initFrame() {
         setTitle("计算器");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(320, 520);
-        setMinimumSize(new Dimension(320, 520));
+        setSize(320, 580);
+        setMinimumSize(new Dimension(320, 580));
         setLocationRelativeTo(null);
         setBackground(ColorScheme.BACKGROUND);
         
@@ -169,11 +169,11 @@ public class CalculatorFrame extends JFrame {
      * 初始化显示面板
      */
     private void initDisplayPanel() {
-        displayPanel = new RoundedPanel(10);
+        displayPanel = new RoundedPanel(0);
         displayPanel.setLayout(new BoxLayout(displayPanel, BoxLayout.Y_AXIS));
         displayPanel.setBackground(ColorScheme.DISPLAY_BACKGROUND);
-        displayPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        displayPanel.setPreferredSize(new Dimension(getWidth(), 100));
+        displayPanel.setBorder(BorderFactory.createEmptyBorder(30, 15, 15, 15));
+        displayPanel.setPreferredSize(new Dimension(getWidth(), 180));
         
         // 表达式显示标签
         expressionLabel = new JLabel("");
@@ -185,13 +185,14 @@ public class CalculatorFrame extends JFrame {
         // 结果显示标签
         displayLabel = new JLabel("0");
         displayLabel.setForeground(ColorScheme.DISPLAY_TEXT);
-        displayLabel.setFont(new Font("Microsoft YaHei", Font.BOLD, 36));
+        displayLabel.setFont(new Font("Microsoft YaHei", Font.BOLD, 60));
         displayLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
         displayLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         
         // 添加标签到显示面板
+        displayPanel.add(Box.createVerticalGlue());
         displayPanel.add(expressionLabel);
-        displayPanel.add(Box.createVerticalStrut(5));
+        displayPanel.add(Box.createVerticalStrut(10));
         displayPanel.add(displayLabel);
     }
 
@@ -201,56 +202,59 @@ public class CalculatorFrame extends JFrame {
      * 创建标准计算器面板
      */
     private JPanel createStandardPanel() {
-        JPanel panel = new JPanel(new GridLayout(6, 4, 8, 8));
+        JPanel panel = new JPanel(new GridLayout(7, 5, 2, 2));
         panel.setBackground(ColorScheme.BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         
-        // 第一行按钮 (MC, MR, M+, M-)
-        addButton(panel, "MC", e -> controller.memoryClear(), ColorScheme.MEMORY_BUTTON_BACKGROUND);
-        addButton(panel, "MR", e -> controller.memoryRecall(), ColorScheme.MEMORY_BUTTON_BACKGROUND);
-        addButton(panel, "M+", e -> controller.memoryAdd(), ColorScheme.MEMORY_BUTTON_BACKGROUND);
-        addButton(panel, "M-", e -> controller.memorySubtract(), ColorScheme.MEMORY_BUTTON_BACKGROUND);
+        // 第一行按钮 (2nd, deg, sin, cos, tan)
+        addButton(panel, "2nd", e -> {/* 切换至二级功能 - 可实现扩展功能 */}, ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "deg", e -> {/* 切换角度制/弧度制 - 可实现扩展功能 */}, ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "sin", e -> controller.calculateTrigFunction("sin"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "cos", e -> controller.calculateTrigFunction("cos"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "tan", e -> controller.calculateTrigFunction("tan"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         
-        // 第二行按钮 (%, CE, C, ←)
-        addButton(panel, "%", e -> controller.calculatePercent(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "CE", e -> controller.clearEntry(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "C", e -> controller.clear(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "←", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        // 第二行按钮 (x^y, lg, ln, (, ))
+        addButton(panel, "xʸ", e -> controller.calculatePower(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "lg", e -> controller.calculateLog10(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "ln", e -> controller.calculateLn(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "(", e -> controller.addDigit("("), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, ")", e -> controller.addDigit(")"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         
-        // 第三行按钮 (1/x, x², √x, ÷)
-        addButton(panel, "1/x", e -> controller.calculateReciprocal(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
-        addButton(panel, "x²", e -> controller.calculateSquare(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        // 第三行按钮 (√x, AC, ⌫, %, ÷)
         addButton(panel, "√x", e -> controller.calculateSquareRoot(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "AC", e -> controller.clear(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "⌫", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "%", e -> controller.calculatePercent(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "÷", e -> controller.setOperation(CalculatorOperation.DIVIDE), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
-        // 第四行按钮 (7, 8, 9, ×)
+        // 第四行按钮 (x!, 7, 8, 9, ×)
+        addButton(panel, "x!", e -> controller.calculateFactorial(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "7", e -> controller.addDigit("7"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "8", e -> controller.addDigit("8"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "9", e -> controller.addDigit("9"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "×", e -> controller.setOperation(CalculatorOperation.MULTIPLY), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
-        // 第五行按钮 (4, 5, 6, -)
+        // 第五行按钮 (1/x, 4, 5, 6, -)
+        addButton(panel, "1/x", e -> controller.calculateReciprocal(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "4", e -> controller.addDigit("4"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "5", e -> controller.addDigit("5"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "6", e -> controller.addDigit("6"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "-", e -> controller.setOperation(CalculatorOperation.SUBTRACT), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
-        // 第六行按钮 (1, 2, 3, +)
+        // 第六行按钮 (π, 1, 2, 3, +)
+        addButton(panel, "π", e -> controller.usePi(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "1", e -> controller.addDigit("1"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "2", e -> controller.addDigit("2"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "3", e -> controller.addDigit("3"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "+", e -> controller.setOperation(CalculatorOperation.ADD), ColorScheme.OPERATION_BUTTON_BACKGROUND);
         
-        // 第七行按钮 (±, 0, ., =)
-        addButton(panel, "±", e -> controller.toggleSign(), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        // 第七行按钮 (+/-, e, 0, ., =)
+        addButton(panel, "+/-", e -> controller.toggleSign(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "e", e -> controller.useE(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         addButton(panel, "0", e -> controller.addDigit("0"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, ".", e -> controller.addDecimalPoint(), ColorScheme.NUMBER_BUTTON_BACKGROUND);
         addButton(panel, "=", e -> controller.calculateResult(), ColorScheme.EQUALS_BUTTON_BACKGROUND, ColorScheme.EQUALS_BUTTON_TEXT);
         
-        //第八行按钮（）
-        addButton(panel,"(", e -> controller.addDigit("("), ColorScheme.NUMBER_BUTTON_BACKGROUND);
-        addButton(panel, ")", e -> controller.addDigit(")"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
-
         return panel;
     }
     
@@ -258,12 +262,58 @@ public class CalculatorFrame extends JFrame {
      * 创建科学计算器面板
      */
     private JPanel createScientificPanel() {
-        JPanel panel = new JPanel(new GridLayout(8, 5, 6, 6));
+        JPanel panel = new JPanel(new GridLayout(8, 5, 2, 2));
         panel.setBackground(ColorScheme.BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         
-        // TODO: 实现科学计算器面板
+        // 第一行按钮
+        addButton(panel, "2nd", e -> {/* 切换至二级功能 - 可实现扩展功能 */}, ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "deg", e -> {/* 切换角度制/弧度制 - 可实现扩展功能 */}, ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "sin", e -> controller.calculateTrigFunction("sin"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "cos", e -> controller.calculateTrigFunction("cos"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "tan", e -> controller.calculateTrigFunction("tan"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
         
+        // 第二行按钮
+        addButton(panel, "xʸ", e -> controller.calculatePower(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "lg", e -> controller.calculateLog10(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "ln", e -> controller.calculateLn(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "(", e -> controller.addDigit("("), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, ")", e -> controller.addDigit(")"), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        
+        // 第三行按钮
+        addButton(panel, "√x", e -> controller.calculateSquareRoot(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "AC", e -> controller.clear(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "⌫", e -> controller.backspace(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "%", e -> controller.calculatePercent(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "÷", e -> controller.setOperation(CalculatorOperation.DIVIDE), ColorScheme.OPERATION_BUTTON_BACKGROUND);
+        
+        // 第四行按钮
+        addButton(panel, "x!", e -> controller.calculateFactorial(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "7", e -> controller.addDigit("7"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "8", e -> controller.addDigit("8"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "9", e -> controller.addDigit("9"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "×", e -> controller.setOperation(CalculatorOperation.MULTIPLY), ColorScheme.OPERATION_BUTTON_BACKGROUND);
+        
+        // 第五行按钮
+        addButton(panel, "1/x", e -> controller.calculateReciprocal(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "4", e -> controller.addDigit("4"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "5", e -> controller.addDigit("5"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "6", e -> controller.addDigit("6"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "-", e -> controller.setOperation(CalculatorOperation.SUBTRACT), ColorScheme.OPERATION_BUTTON_BACKGROUND);
+        
+        // 第六行按钮
+        addButton(panel, "π", e -> controller.usePi(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "1", e -> controller.addDigit("1"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "2", e -> controller.addDigit("2"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "3", e -> controller.addDigit("3"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "+", e -> controller.setOperation(CalculatorOperation.ADD), ColorScheme.OPERATION_BUTTON_BACKGROUND);
+        
+        // 第七行按钮
+        addButton(panel, "+/-", e -> controller.toggleSign(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "e", e -> controller.useE(), ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+        addButton(panel, "0", e -> controller.addDigit("0"), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, ".", e -> controller.addDecimalPoint(), ColorScheme.NUMBER_BUTTON_BACKGROUND);
+        addButton(panel, "=", e -> controller.calculateResult(), ColorScheme.EQUALS_BUTTON_BACKGROUND, ColorScheme.EQUALS_BUTTON_TEXT);
         
         return panel;
     }
@@ -279,8 +329,8 @@ public class CalculatorFrame extends JFrame {
      * 添加按钮到面板（指定文本颜色）
      */
     private void addButton(JPanel panel, String text, Action action, Color backgroundColor, Color textColor) {
-        JButton button = new RoundedButton(text, 10);
-        button.setFont(new Font("Microsoft YaHei", Font.PLAIN, 16));
+        JButton button = new RoundedButton(text, 8);
+         button.setFont(new Font("Microsoft YaHei", Font.PLAIN, 16));
         button.setBackground(backgroundColor);
         button.setForeground(textColor);
         button.setFocusPainted(false);
@@ -406,9 +456,9 @@ public class CalculatorFrame extends JFrame {
         
         // 调整窗口尺寸
         if (isScientificMode) {
-            setSize(480, 520);
+            setSize(320, 580);
         } else {
-            setSize(320, 520);
+            setSize(320, 580);
         }
     }
     

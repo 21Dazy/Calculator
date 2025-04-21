@@ -24,6 +24,7 @@ public class RoundedButton extends JButton {
         setFocusPainted(false);
         setBorderPainted(false);
         setOpaque(false);
+        setMargin(new Insets(1, 1, 1, 1)); // 增加紧凑的边距
         
         // 添加鼠标事件监听
         addMouseListener(new java.awt.event.MouseAdapter() {
@@ -50,11 +51,20 @@ public class RoundedButton extends JButton {
     }
     
     @Override
+    public Dimension getPreferredSize() {
+        // 保持正方形形状但不需要强制使按钮特别大
+        Dimension size = super.getPreferredSize();
+        int size2 = Math.max(size.width, size.height);
+        return new Dimension(size2, size2);
+    }
+    
+    @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         
-        // 绘制背景
+        // 绘制背景（圆角矩形）
         if (isPressed) {
             // 按下状态 - 加深颜色
             g2.setColor(darken(getBackground(), 0.1f));
@@ -66,7 +76,8 @@ public class RoundedButton extends JButton {
             g2.setColor(getBackground());
         }
         
-        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), radius, radius));
+        // 绘制圆角矩形（按钮边距更小，看起来更紧凑）
+        g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), radius*2, radius*2));
         
         // 设置字体和颜色
         g2.setFont(getFont());
@@ -77,10 +88,10 @@ public class RoundedButton extends JButton {
         int textWidth = fm.stringWidth(getText());
         int textHeight = fm.getHeight();
         
-        int x = (getWidth() - textWidth) / 2;
-        int y = (getHeight() - textHeight) / 2 + fm.getAscent();
+        int textX = (getWidth() - textWidth) / 2;
+        int textY = (getHeight() - textHeight) / 2 + fm.getAscent();
         
-        g2.drawString(getText(), x, y);
+        g2.drawString(getText(), textX, textY);
         
         g2.dispose();
     }
@@ -107,7 +118,6 @@ public class RoundedButton extends JButton {
         float[] hsb = Color.RGBtoHSB(color.getRed(), color.getGreen(), color.getBlue(), null);
         hsb[2] = Math.min(1.0f, hsb[2] + factor);
         return Color.getHSBColor(hsb[0], hsb[1], hsb[2]);
-   
     }
 
     /**

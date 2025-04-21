@@ -96,6 +96,71 @@ public class CalculatorController {
     }
     
     /**
+     * 计算三角函数
+     * @param type 三角函数类型 (sin, cos, tan)
+     */
+    public void calculateTrigFunction(String type) {
+        model.calculateTrigFunction(type);
+        updateView();
+    }
+    
+    /**
+     * 使用圆周率 Pi
+     */
+    public void usePi() {
+        model.usePi();
+        updateView();
+    }
+    
+    /**
+     * 使用自然常数 e
+     */
+    public void useE() {
+        model.useE();
+        updateView();
+    }
+    
+    /**
+     * 计算阶乘
+     */
+    public void calculateFactorial() {
+        model.calculateFactorial();
+        updateView();
+    }
+    
+    /**
+     * 计算对数 (lg - 常用对数)
+     */
+    public void calculateLog10() {
+        model.calculateLog10();
+        updateView();
+    }
+    
+    /**
+     * 计算自然对数 (ln)
+     */
+    public void calculateLn() {
+        model.calculateLn();
+        updateView();
+    }
+    
+    /**
+     * 计算幂 (x^y)
+     */
+    public void calculatePower() {
+        model.calculatePower();
+        updateView();
+    }
+    
+    /**
+     * 完成幂运算
+     */
+    public void completePowerCalculation() {
+        model.completePowerCalculation();
+        updateView();
+    }
+    
+    /**
      * 清除当前输入
      */
     public void clearEntry() {
