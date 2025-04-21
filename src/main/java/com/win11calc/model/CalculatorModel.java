@@ -16,6 +16,8 @@ public class CalculatorModel {
     private List<String> history = new ArrayList<>();
     private CalculatorOperation currentOperation = null;
     private double leftOperand = 0;
+
+    private List<String> rpnExpression = new ArrayList<>();
     
     /**
      * 获取当前输入
@@ -31,6 +33,14 @@ public class CalculatorModel {
      */
     public String getExpression() {
         return expression;
+    }
+
+    /**
+     * 获取逆波兰表达式
+     * @return 逆波兰表达式列表
+     */
+    public List<String> getRpnExpression() {
+        return rpnExpression;
     }
     
     /**
