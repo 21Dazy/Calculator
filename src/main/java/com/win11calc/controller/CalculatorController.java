@@ -25,11 +25,17 @@ public class CalculatorController {
      * 更新视图
      */
     private void updateView() {
-        view.updateDisplay(
-            model.getCurrentInput(),
-            model.getExpression(),
-            model.getCurrentResult()
-        );
+        // 在错误状态下显示错误消息
+        if (model.isErrorState()) {
+            view.updateDisplay(model.getErrorMessage(), "错误", "");
+        } else {
+            // 正常状态下显示表达式和结果
+            view.updateDisplay(
+                model.getCurrentResult(),  // 当前结果作为主显示
+                model.getExpression(),     // 表达式
+                model.getCurrentResult()   // 同时也将结果传递给结果区域
+            );
+        }
     }
     
     /**

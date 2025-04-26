@@ -446,7 +446,7 @@ public class CalculatorFrame extends JFrame {
     
     /**
      * 更新显示
-     * @param input 输入值
+     * @param input 输入值或当前结果
      * @param expression 表达式
      * @param result 计算结果
      */
@@ -461,11 +461,32 @@ public class CalculatorFrame extends JFrame {
             expressionLabel.setText("");
             resultLabel.setText(input);
         } else {
-            // 正常表达式模式下，上方显示表达式，下方显示计算结果
+            // 将表达式显示在上方标签
             expressionLabel.setText(expression);
-            // 如果有计算结果就显示结果，否则显示当前输入
-            resultLabel.setText(result.isEmpty() ? input : result);
+            
+            // 当前结果显示在下方标签
+            resultLabel.setText(result);
         }
+        
+        // 自动调整字体大小，以适应长文本
+        adjustFontSize(resultLabel, 60);
+    }
+    
+    /**
+     * 自动调整标签的字体大小
+     * @param label 要调整的标签
+     * @param maxSize 最大字体大小
+     */
+    private void adjustFontSize(JLabel label, int maxSize) {
+        String text = label.getText();
+        int size = maxSize;
+        
+        // 根据文本长度调整字体大小
+        if (text.length() > 10) {
+            size = Math.max(24, maxSize - (text.length() - 10) * 2);
+        }
+        
+        label.setFont(new Font("Microsoft YaHei", Font.BOLD, size));
     }
     
     /**
