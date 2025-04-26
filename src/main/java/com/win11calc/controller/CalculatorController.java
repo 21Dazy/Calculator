@@ -105,6 +105,14 @@ public class CalculatorController {
     }
     
     /**
+     * 计算取余
+     */
+    public void calculateModulo() {
+        model.calculateModulo();
+        updateView();
+    }
+    
+    /**
      * 计算平方根
      */
     public void calculateSquareRoot() {
@@ -116,7 +124,15 @@ public class CalculatorController {
      * 计算平方
      */
     public void calculateSquare() {
-        model.calculateSquare();
+        model.calculateSquarePower();
+        updateView();
+    }
+    
+    /**
+     * 计算幂运算（指定指数）
+     */
+    public void calculatePower() {
+        model.calculatePower();
         updateView();
     }
     
@@ -129,12 +145,57 @@ public class CalculatorController {
     }
     
     /**
+     * 计算绝对值
+     */
+    public void calculateAbsoluteValue() {
+        model.calculateAbsoluteValue();
+        updateView();
+    }
+    
+    /**
+     * 转换为科学计数法
+     */
+    public void addScientificNotation() {
+        model.addScientificNotation();
+        updateView();
+    }
+    
+    /**
      * 计算三角函数
      * @param type 三角函数类型
+     * @param isRadianMode 是否为弧度模式，true为弧度制，false为角度制
+     */
+    public void calculateTrigFunction(String type, boolean isRadianMode) {
+        model.calculateTrigFunction(type, isRadianMode);
+        updateView();
+    }
+    
+    /**
+     * 计算反三角函数
+     * @param type 反三角函数类型
+     * @param isRadianMode 是否为弧度模式，true为弧度制，false为角度制
+     */
+    public void calculateInverseTrigFunction(String type, boolean isRadianMode) {
+        model.calculateInverseTrigFunction(type, isRadianMode);
+        updateView();
+    }
+    
+    /**
+     * 计算三角函数（默认使用弧度制）
+     * @param type 三角函数类型
+     * @deprecated 使用 {@link #calculateTrigFunction(String, boolean)} 代替
      */
     public void calculateTrigFunction(String type) {
-        model.calculateTrigFunction(type);
-        updateView();
+        calculateTrigFunction(type, true);
+    }
+    
+    /**
+     * 计算反三角函数（默认使用弧度制）
+     * @param type 反三角函数类型
+     * @deprecated 使用 {@link #calculateInverseTrigFunction(String, boolean)} 代替
+     */
+    public void calculateInverseTrigFunction(String type) {
+        calculateInverseTrigFunction(type, true);
     }
     
     /**
@@ -174,14 +235,6 @@ public class CalculatorController {
      */
     public void calculateLn() {
         model.calculateLn();
-        updateView();
-    }
-    
-    /**
-     * 计算幂
-     */
-    public void calculatePower() {
-        model.calculatePower();
         updateView();
     }
     
