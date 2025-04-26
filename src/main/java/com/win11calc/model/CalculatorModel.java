@@ -224,8 +224,32 @@ public class CalculatorModel {
             // 更新表达式
             updateExpressionFromTokens();
             
-            // 尝试实时计算结果
-            calculateInRealTime();
+            // 尝试实时计算结果，但不让它覆盖当前的表达式
+            double tmpResult = 0;
+            try {
+                // 创建一个临时tokens列表进行计算
+                List<String> tempTokens = new ArrayList<>(tokens);
+                
+                // 移除最后一个操作符用于计算
+                if (!tempTokens.isEmpty() && isOperator(tempTokens.get(tempTokens.size() - 1))) {
+                    tempTokens.remove(tempTokens.size() - 1);
+                }
+                
+                // 确保表达式有效后再计算
+                if (isValidExpression(tempTokens)) {
+                    // 将中缀表达式转换为后缀表达式
+                    List<String> rpnTokens = convertToRPN(tempTokens);
+                    
+                    // 计算逆波兰表达式
+                    tmpResult = evaluateRPN(rpnTokens);
+                    
+                    // 更新当前结果
+                    currentResult = formatNumber(tmpResult);
+                }
+            } catch (Exception e) {
+                // 计算错误不影响当前操作
+                currentResult = "";
+            }
         } catch (Exception e) {
             setErrorState("操作错误: " + e.getMessage());
         }
@@ -420,9 +444,12 @@ public class CalculatorModel {
                 // 标记为等号已按下，下次输入数字时应该清除表达式
                 replaceExpressionWithResult = true;
                 
-                // 清空tokens，为下次计算做准备
+                // 清空tokens，为下次计算做准备，但保留当前结果
                 tokens.clear();
                 tokens.add(formattedResult);
+                
+                // 更新表达式为结果
+                displayExpression = formattedResult;
             } catch (Exception e) {
                 setErrorState("计算错误: " + e.getMessage());
             }
@@ -671,12 +698,12 @@ public class CalculatorModel {
             double squareResult = value * value;
             
             // 保存计算前的表达式
-            String functionExpr = "sqr(" + formatNumber(value) + ")";
+            String functionExpr = formatNumber(value) + "²";
             
             // 更新计算结果
             currentInput = formatNumber(squareResult);
             
-            // 更新tokens和表达式
+            // 更新表达式显示
             if (tokens.isEmpty()) {
                 // 如果tokens为空，这是一个全新的计算
                 displayExpression = functionExpr;
@@ -689,19 +716,9 @@ public class CalculatorModel {
                 displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
+            // 设置为非新输入状态，让操作符处理添加结果到tokens
+            isNewInput = false;
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
         } catch (Exception e) {
             setErrorState("计算错误");
         }
@@ -736,7 +753,7 @@ public class CalculatorModel {
             // 更新计算结果
             currentInput = formatNumber(reciprocalResult);
             
-            // 更新tokens和表达式
+            // 更新表达式显示
             if (tokens.isEmpty()) {
                 // 如果tokens为空，这是一个全新的计算
                 displayExpression = functionExpr;
@@ -749,19 +766,9 @@ public class CalculatorModel {
                 displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
+            // 设置为非新输入状态，让操作符处理添加结果到tokens
+            isNewInput = false;
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
         } catch (Exception e) {
             setErrorState("计算错误");
         }
@@ -881,7 +888,7 @@ public class CalculatorModel {
             // 更新计算结果
             currentInput = formatNumber(result);
             
-            // 更新tokens和表达式
+            // 更新表达式显示
             if (tokens.isEmpty()) {
                 // 如果tokens为空，这是一个全新的计算
                 displayExpression = functionExpr;
@@ -894,19 +901,9 @@ public class CalculatorModel {
                 displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
+            // 设置为非新输入状态，让操作符处理添加结果到tokens
+            isNewInput = false;
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
         } catch (Exception e) {
             setErrorState("计算错误");
         }
@@ -991,7 +988,7 @@ public class CalculatorModel {
             // 更新计算结果
             currentInput = formatNumber(result);
             
-            // 更新tokens和表达式
+            // 更新表达式显示
             if (tokens.isEmpty()) {
                 // 如果tokens为空，这是一个全新的计算
                 displayExpression = functionExpr;
@@ -1004,19 +1001,9 @@ public class CalculatorModel {
                 displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
+            // 设置为非新输入状态，让操作符处理添加结果到tokens
+            isNewInput = false;
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
         } catch (Exception e) {
             setErrorState("计算错误");
         }
@@ -1303,7 +1290,7 @@ public class CalculatorModel {
             
             // 更新tokens和表达式
             if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算，清除tokens，不要加入0
+                // 如果tokens为空，这是一个全新的计算
                 displayExpression = functionExpr;
             } else if (isOperator(tokens.get(tokens.size() - 1))) {
                 // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
@@ -1314,19 +1301,10 @@ public class CalculatorModel {
                 displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
+            // 重要修改：不自动将结果添加到tokens中，让操作符处理来处理
+            // 设置isNewInput为false，这样在按操作符时会正确添加当前结果
+            isNewInput = false;
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
         } catch (Exception e) {
             setErrorState("计算错误");
         }
