@@ -7,7 +7,9 @@ public enum CalculatorOperation {
     ADD("+"),
     SUBTRACT("-"),
     MULTIPLY("×"),
-    DIVIDE("÷");
+    DIVIDE("÷"),
+    MODULO("%"),
+    POWER("^");
     
     private final String symbol;
     

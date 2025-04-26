@@ -1,26 +1,27 @@
 package com.win11calc;
 
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.win11calc.utils.ThemeManager;
 import com.win11calc.view.CalculatorFrame;
 
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 
 /**
- * Windows 11 风格计算器主应用程序
+ * 计算器应用程序入口类
  */
 public class App {
+    /**
+     * 主方法
+     * @param args 命令行参数
+     */
     public static void main(String[] args) {
-        try {
-            // 设置FlatLaf暗色主题作为默认Look and Feel
-            UIManager.setLookAndFeel(new FlatDarkLaf());
-        } catch (Exception ex) {
-            System.err.println("无法初始化主题: " + ex);
-        }
-        
-        // 在事件调度线程上启动GUI
+        // 在EDT线程中启动应用
         SwingUtilities.invokeLater(() -> {
-            CalculatorFrame calculator = new CalculatorFrame();
-            calculator.setVisible(true);
+            // 加载主题设置
+            ThemeManager.loadSettings();
+            
+            // 创建并显示主窗口
+            CalculatorFrame frame = new CalculatorFrame();
+            frame.setVisible(true);
         });
     }
 } 

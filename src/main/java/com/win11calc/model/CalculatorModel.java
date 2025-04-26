@@ -6,37 +6,32 @@ import java.util.Stack;
 
 /**
  * 计算器模型类，负责处理计算逻辑
+ * 重构后的设计：
+ * 1. 所有按键操作都只是修改表达式文本
+ * 2. 计算是对表达式文本的解析
+ * 3. 只有按下等号时，才会计算结果并替换表达式
  */
 public class CalculatorModel {
-    private String currentInput = "0";
-    private String displayExpression = ""; // 用于显示的表达式
+    // 显示相关
+    private String displayExpression = ""; // 用于显示的表达式文本
     private String currentResult = "0"; // 当前计算结果
-    private double memory = 0;
-    private boolean isNewInput = true;
-    private boolean errorState = false;
-    private List<String> history = new ArrayList<>();
-    private boolean replaceExpressionWithResult = false; // 等号按下后，用结果替换表达式
+    private boolean errorState = false; // 错误状态
+    private String errorMessage = ""; // 错误消息
 
-    // 用于构建表达式的变量
-    private StringBuilder expressionBuilder = new StringBuilder();
-    private List<String> tokens = new ArrayList<>(); // 存储表达式的token
-    
-    // 函数输入支持
-    private boolean inFunctionInput = false; // 是否在输入函数参数
-    private String currentFunction = ""; // 当前正在输入参数的函数
-    private String functionArgument = ""; // 函数参数
+    // 内存相关
+    private double memory = 0; // 内存值
+    private List<String> history = new ArrayList<>(); // 历史记录
+
+    // 状态标记
+    private boolean isInFunctionInput = false; // 是否在输入函数参数
+    private String currentFunctionName = ""; // 当前函数名
+    private int functionParenthesisPos = -1; // 函数左括号位置
+
+    // 添加一个用于记录角度模式的字段，默认使用弧度制
+    private boolean isUsingRadianMode = true;
 
     /**
-     * 获取当前输入
-     * @return 当前输入的字符串
-     */
-    public String getCurrentInput() {
-        return currentInput;
-    }
-    
-    /**
-     * 获取表达式
-     * @return 当前表达式
+     * 获取当前表达式文本
      */
     public String getExpression() {
         return displayExpression;
@@ -44,74 +39,63 @@ public class CalculatorModel {
 
     /**
      * 获取当前计算结果
-     * @return 当前计算结果
      */
     public String getCurrentResult() {
         return currentResult;
     }
-    
+
     /**
      * 检查是否处于错误状态
-     * @return 是否有错误
      */
     public boolean isErrorState() {
         return errorState;
     }
-    
+
+    /**
+     * 获取错误消息
+     */
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
     /**
      * 获取计算历史记录
-     * @return 历史记录列表
      */
     public List<String> getHistory() {
         return new ArrayList<>(history);
     }
-    
+
     /**
-     * 添加数字到当前输入
-     * @param digit 数字字符
+     * 添加数字到表达式
      */
     public void addDigit(String digit) {
         if (errorState) {
             clear();
         }
-        
-        if (replaceExpressionWithResult) {
-            // 当等号被按下后，如果输入新数字，应该清除之前的所有计算
-            clear();
-            replaceExpressionWithResult = false;
-        }
-        
-        // 如果在函数输入模式中，将数字添加到函数参数中
-        if (inFunctionInput) {
-            if (functionArgument.equals("0")) {
-                functionArgument = digit;
+
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            int closingPos = displayExpression.lastIndexOf(')');
+            if (closingPos == displayExpression.length() - 1) {
+                // 如果已经有右括号，替换它
+                displayExpression = displayExpression.substring(0, displayExpression.length() - 1) + digit + ")";
             } else {
-                functionArgument += digit;
+                // 在函数名后面添加数字
+                displayExpression += digit;
             }
-            // 更新表达式显示
-            updateFunctionExpression();
-            return;
-        }
-        
-        if (isNewInput) {
-            currentInput = digit;
-            isNewInput = false;
         } else {
-            // 避免前导多个0
-            if (currentInput.equals("0") && !digit.equals(".")) {
-                currentInput = digit;
+            // 普通数字输入
+            if (displayExpression.equals("0")) {
+                displayExpression = digit; // 替换前导0
             } else {
-                currentInput += digit;
+                displayExpression += digit;
             }
         }
-        
-        // 更新表达式
-        updateExpression();
-        
+
         // 尝试实时计算结果
-        calculateInRealTime();
+        tryCalculateResult();
     }
-    
+
     /**
      * 添加小数点
      */
@@ -119,117 +103,117 @@ public class CalculatorModel {
         if (errorState) {
             clear();
         }
-        
-        if (replaceExpressionWithResult) {
-            // 如果显示结果状态，清除之前的运算
-            clear();
-            replaceExpressionWithResult = false;
-        }
-        
-        // 如果在函数输入模式中，添加小数点到函数参数
-        if (inFunctionInput) {
-            if (!functionArgument.contains(".")) {
-                if (functionArgument.isEmpty()) {
-                    functionArgument = "0.";
+
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            // 解析当前函数参数
+            String parameter = extractFunctionParameter();
+            
+            // 检查参数中是否已有小数点
+            if (!parameter.contains(".")) {
+                if (parameter.isEmpty()) {
+                    // 如果参数为空，添加"0."
+                    insertIntoFunction("0.");
                 } else {
-                    functionArgument += ".";
+                    // 否则直接添加小数点
+                    insertIntoFunction(".");
                 }
-                // 更新表达式显示
-                updateFunctionExpression();
             }
-            return;
+        } else {
+            // 检查最后一个数字是否已包含小数点
+            String lastNumber = extractLastNumber();
+            
+            if (!lastNumber.contains(".")) {
+                if (lastNumber.isEmpty() || isOperator(displayExpression.substring(displayExpression.length() - 1))) {
+                    displayExpression += "0.";
+                } else {
+                    displayExpression += ".";
+                }
+            }
         }
-        
-        if (isNewInput) {
-            currentInput = "0.";
-            isNewInput = false;
-        } else if (!currentInput.contains(".")) {
-            currentInput += ".";
-        }
-        
-        // 更新表达式
-        updateExpression();
     }
-    
+
     /**
      * 改变数值正负号
      */
     public void toggleSign() {
-        if (!errorState) {
-            // 如果在函数输入模式中，切换函数参数的正负号
-            if (inFunctionInput) {
-                if (functionArgument.startsWith("-")) {
-                    functionArgument = functionArgument.substring(1);
-                } else if (!functionArgument.equals("0") && !functionArgument.isEmpty()) {
-                    functionArgument = "-" + functionArgument;
-                }
-                // 更新表达式显示
-                updateFunctionExpression();
-                return;
-            }
-            
-            if (currentInput.startsWith("-")) {
-                currentInput = currentInput.substring(1);
-            } else if (!currentInput.equals("0")) {
-                currentInput = "-" + currentInput;
-            }
-            
-            // 更新表达式
-            updateExpression();
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
+        if (errorState) {
+            clear();
+            return;
         }
+
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            String parameter = extractFunctionParameter();
+            
+            if (parameter.startsWith("-")) {
+                // 移除负号
+                String newParam = parameter.substring(1);
+                replaceFunctionParameter(newParam);
+            } else if (!parameter.isEmpty() && !parameter.equals("0")) {
+                // 添加负号
+                replaceFunctionParameter("-" + parameter);
+            }
+        } else {
+            // 找到最后一个数字
+            String lastNumber = extractLastNumber();
+            int lastNumberPos = displayExpression.lastIndexOf(lastNumber);
+            
+            if (lastNumber.startsWith("-")) {
+                // 移除负号
+                displayExpression = displayExpression.substring(0, lastNumberPos) + 
+                                   lastNumber.substring(1) + 
+                                   displayExpression.substring(lastNumberPos + lastNumber.length());
+            } else if (!lastNumber.isEmpty() && !lastNumber.equals("0")) {
+                // 添加负号
+                displayExpression = displayExpression.substring(0, lastNumberPos) + 
+                                   "-" + lastNumber + 
+                                   displayExpression.substring(lastNumberPos + lastNumber.length());
+            }
+        }
+
+        // 尝试实时计算结果
+        tryCalculateResult();
     }
-    
+
     /**
-     * 设置操作
-     * @param operation 计算操作
+     * 设置操作符（+, -, ×, ÷）
      */
     public void setOperation(CalculatorOperation operation) {
         if (errorState) {
             return;
         }
-        
-        // 如果当前正在输入函数参数，先完成函数计算
-        if (inFunctionInput) {
+
+        // 如果当前在函数输入模式，完成函数输入
+        if (isInFunctionInput) {
             completeFunctionInput();
         }
-        
-        try {
-            // 如果处于替换状态，取消替换状态
-            if (replaceExpressionWithResult) {
-                displayExpression = currentInput;
-                replaceExpressionWithResult = false;
-            }
-            
-            // 确保当前输入被添加到tokens中
-            if (!isNewInput) {
-                tokens.add(currentInput);
-                isNewInput = true;
-            } else if (tokens.isEmpty()) {
-                // 如果没有当前输入但tokens为空，添加0
-                tokens.add("0");
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，用新操作符替换它
-                tokens.set(tokens.size() - 1, operation.getSymbol());
-                updateExpressionFromTokens();
-                return;
-            }
-            
-            // 添加操作符到tokens
-            tokens.add(operation.getSymbol());
-            
-            // 更新表达式
-            updateExpressionFromTokens();
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("操作错误: " + e.getMessage());
+
+        // 检查表达式是否为空
+        if (displayExpression.isEmpty()) {
+            displayExpression = "0" + operation.getSymbol();
+            return;
         }
+
+        // 检查最后一个字符是否是操作符，如果是则替换
+        if (displayExpression.length() > 0) {
+            char lastChar = displayExpression.charAt(displayExpression.length() - 1);
+            if (isOperator(String.valueOf(lastChar))) {
+                displayExpression = displayExpression.substring(0, displayExpression.length() - 1) + 
+                                   operation.getSymbol();
+            } else if (lastChar == '(') {
+                // 如果最后是左括号，添加0和操作符
+                displayExpression += "0" + operation.getSymbol();
+            } else {
+                // 否则直接添加操作符
+                displayExpression += operation.getSymbol();
+            }
+        }
+
+        // 尝试实时计算结果
+        tryCalculateResult();
     }
-    
+
     /**
      * 添加左括号
      */
@@ -237,26 +221,22 @@ public class CalculatorModel {
         if (errorState) {
             clear();
         }
-        
-        if (replaceExpressionWithResult) {
-            // 如果处于结果显示状态，清除
-            clear();
-            replaceExpressionWithResult = false;
+
+        // 检查最后一个字符
+        if (!displayExpression.isEmpty()) {
+            char lastChar = displayExpression.charAt(displayExpression.length() - 1);
+            // 如果最后一个字符是数字或右括号，添加乘号
+            if (Character.isDigit(lastChar) || lastChar == ')' || lastChar == '.' || 
+                lastChar == 'π' || lastChar == 'e') {
+                displayExpression += "×(";
+            } else {
+                displayExpression += "(";
+            }
+        } else {
+            displayExpression = "(";
         }
-        
-        // 如果当前正在输入数字，先将数字加入tokens
-        if (!isNewInput) {
-            tokens.add(currentInput);
-            isNewInput = true;
-        }
-        
-        // 添加左括号
-        tokens.add("(");
-        
-        // 更新表达式
-        updateExpressionFromTokens();
     }
-    
+
     /**
      * 添加右括号
      */
@@ -264,247 +244,736 @@ public class CalculatorModel {
         if (errorState) {
             return;
         }
-        
-        // 计算左右括号数量，确保有未匹配的左括号
+
+        // 计算左右括号数量
         int leftCount = 0;
         int rightCount = 0;
-        for (String token : tokens) {
-            if (token.equals("(")) leftCount++;
-            if (token.equals(")")) rightCount++;
+        for (char c : displayExpression.toCharArray()) {
+            if (c == '(') leftCount++;
+            if (c == ')') rightCount++;
         }
-        
-        if (leftCount <= rightCount) {
-            // 如果没有未匹配的左括号，忽略此操作
+
+        // 确保有未匹配的左括号
+        if (leftCount > rightCount) {
+            // 如果最后一个字符是操作符，先添加0
+            if (!displayExpression.isEmpty() && 
+                isOperator(String.valueOf(displayExpression.charAt(displayExpression.length() - 1)))) {
+                displayExpression += "0";
+            }
+            displayExpression += ")";
+
+            // 尝试实时计算结果
+            tryCalculateResult();
+        }
+    }
+
+    /**
+     * 开始函数输入（如sin, cos, log等）
+     */
+    public void startFunctionInput(String functionName) {
+        if (errorState) {
+            clear();
+        }
+
+        // 如果已在函数输入模式，先完成当前函数
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+
+        // 检查是否需要添加乘号
+        if (!displayExpression.isEmpty()) {
+            char lastChar = displayExpression.charAt(displayExpression.length() - 1);
+            if (Character.isDigit(lastChar) || lastChar == ')' || lastChar == '.' || 
+                lastChar == 'π' || lastChar == 'e') {
+                displayExpression += "×";
+            }
+        }
+
+        // 添加函数名和左括号
+        displayExpression += functionName + "(";
+        isInFunctionInput = true;
+        currentFunctionName = functionName;
+        functionParenthesisPos = displayExpression.length() - 1;
+    }
+
+    /**
+     * 完成函数输入
+     */
+    public void completeFunctionInput() {
+        if (!isInFunctionInput) {
             return;
         }
-        
-        // 如果当前正在输入数字，先将数字加入tokens
-        if (!isNewInput) {
-            tokens.add(currentInput);
-            isNewInput = true;
+
+        // 如果函数输入不完整，添加右括号
+        if (displayExpression.charAt(displayExpression.length() - 1) != ')') {
+            // 如果括号内为空，添加0
+            if (displayExpression.charAt(displayExpression.length() - 1) == '(') {
+                displayExpression += "0";
+            }
+            displayExpression += ")";
         }
-        
-        // 添加右括号
-        tokens.add(")");
-        
-        // 更新表达式
-        updateExpressionFromTokens();
-        
+
+        // 重置函数输入状态
+        isInFunctionInput = false;
+        currentFunctionName = "";
+        functionParenthesisPos = -1;
+
         // 尝试实时计算结果
-        calculateInRealTime();
+        tryCalculateResult();
     }
-    
+
     /**
-     * 实时计算表达式的结果
+     * 添加特殊常数（如π, e）
      */
-    private void calculateInRealTime() {
-        if (tokens.isEmpty()) {
-            currentResult = currentInput;
-            return;
+    public void addConstant(String constant, double value) {
+        if (errorState) {
+            clear();
         }
-        
-        // 创建一个临时tokens列表进行计算
-        List<String> tempTokens = new ArrayList<>(tokens);
-        
-        // 如果当前有未添加的输入，添加到临时列表
-        if (!isNewInput && !tokens.isEmpty() && !isOperator(tokens.get(tokens.size() - 1))) {
-            tempTokens.add(currentInput);
-        }
-        
-        try {
-            // 确保表达式有效：括号匹配且不以操作符结尾
-            if (isValidExpression(tempTokens)) {
-                // 将中缀表达式转换为后缀表达式
-                List<String> rpnTokens = convertToRPN(tempTokens);
-                
-                // 计算逆波兰表达式
-                double result = evaluateRPN(rpnTokens);
-                
-                // 更新当前结果
-                currentResult = formatNumber(result);
-            } else {
-                // 表达式不完整，不计算结果
-                currentResult = "";
-            }
-        } catch (Exception e) {
-            // 计算过程中出现错误，不显示结果
-            currentResult = "";
-        }
-    }
-    
-    /**
-     * 检查表达式是否有效
-     */
-    private boolean isValidExpression(List<String> exprTokens) {
-        if (exprTokens.isEmpty()) return false;
-        
-        // 检查左右括号是否匹配
-        int parenCount = 0;
-        for (String token : exprTokens) {
-            if (token.equals("(")) parenCount++;
-            else if (token.equals(")")) {
-                parenCount--;
-                if (parenCount < 0) return false; // 右括号多于左括号
+
+        // 检查是否需要添加乘号
+        if (!displayExpression.isEmpty()) {
+            char lastChar = displayExpression.charAt(displayExpression.length() - 1);
+            if (Character.isDigit(lastChar) || lastChar == ')' || lastChar == '.' || 
+                lastChar == 'π' || lastChar == 'e') {
+                displayExpression += "×";
             }
         }
-        if (parenCount != 0) return false; // 括号不匹配
-        
-        // 检查是否以操作符结尾
-        String lastToken = exprTokens.get(exprTokens.size() - 1);
-        if (isOperator(lastToken)) return false;
-        
-        return true;
+
+        // 添加常数符号
+        displayExpression += constant;
+
+        // 尝试实时计算结果
+        tryCalculateResult();
     }
-    
+
     /**
-     * 计算结果 - 使用逆波兰表达式计算
+     * 计算结果（按下等号）
      */
     public void calculateResult() {
         if (errorState) {
             return;
         }
-        
-        // 如果当前在输入函数参数，先完成函数计算
-        if (inFunctionInput) {
+
+        // 如果当前在函数输入模式，完成函数输入
+        if (isInFunctionInput) {
             completeFunctionInput();
-            return;
         }
-        
+
         try {
-            // 如果当前有输入但未添加到tokens，添加它
-            if (!isNewInput) {
-                tokens.add(currentInput);
-                isNewInput = true;
-                updateExpressionFromTokens();
-            }
-            
-            // 如果tokens为空，直接返回
-            if (tokens.isEmpty()) {
+            // 确保表达式不为空
+            if (displayExpression.isEmpty()) {
+                displayExpression = "0";
+                currentResult = "0";
                 return;
             }
+
+            // 解析并计算表达式
+            double result = evaluateExpression(displayExpression);
             
-            // 检查表达式有效性
-            if (!isValidExpression(tokens)) {
-                setErrorState("表达式不完整");
+            // 检查结果是否有效
+            if (Double.isInfinite(result) || Double.isNaN(result)) {
+                setErrorState("计算结果无效");
                 return;
             }
-            
-            // 保存原始表达式用于历史记录
-            String originalExpression = displayExpression;
-            
-            try {
-                // 将中缀表达式转换为后缀表达式（逆波兰表达式）
-                List<String> rpnTokens = convertToRPN(tokens);
-                
-                // 计算逆波兰表达式
-                double result = evaluateRPN(rpnTokens);
-                
-                // 检查结果是否有效
-                if (Double.isInfinite(result) || Double.isNaN(result)) {
-                    setErrorState("计算结果无效");
-                    return;
-                }
-                
-                // 格式化结果
-                String formattedResult = formatNumber(result);
-                
-                // 添加到历史记录
-                String historyEntry = originalExpression + " = " + formattedResult;
-                history.add(historyEntry);
-                
-                // 更新显示
-                currentInput = formattedResult;
-                currentResult = formattedResult;
-                
-                // 标记为等号已按下，下次输入数字时应该清除表达式
-                replaceExpressionWithResult = true;
-                
-                // 清空tokens，为下次计算做准备
-                tokens.clear();
-                tokens.add(formattedResult);
-            } catch (Exception e) {
-                setErrorState("计算错误: " + e.getMessage());
-            }
+
+            // 添加到历史记录
+            String historyEntry = displayExpression + " = " + formatNumber(result);
+            history.add(historyEntry);
+
+            // 更新当前结果和表达式
+            currentResult = formatNumber(result);
+            String oldExpression = displayExpression;
+            displayExpression = currentResult;
+
+            // 触发结果更新事件（如果有监听器）
+            // notifyResultCalculated(oldExpression, currentResult);
         } catch (Exception e) {
             setErrorState("计算错误: " + e.getMessage());
         }
     }
-    
+
     /**
-     * 从tokens更新表达式
+     * 尝试实时计算结果（不改变表达式）
      */
-    private void updateExpressionFromTokens() {
-        StringBuilder sb = new StringBuilder();
-        for (String token : tokens) {
-            if (isOperator(token)) {
-                sb.append(" ").append(token).append(" ");
+    private void tryCalculateResult() {
+        // 如果表达式为空，不计算
+        if (displayExpression.isEmpty()) {
+            currentResult = "0";
+            return;
+        }
+
+        try {
+            // 创建一个临时表达式用于计算
+            String tempExpression = displayExpression;
+            
+            // 如果表达式以操作符结尾，添加0
+            if (isOperator(tempExpression.substring(tempExpression.length() - 1))) {
+                tempExpression += "0";
+            }
+            
+            // 确保所有括号都闭合
+            int leftCount = 0;
+            int rightCount = 0;
+            for (char c : tempExpression.toCharArray()) {
+                if (c == '(') leftCount++;
+                if (c == ')') rightCount++;
+            }
+            
+            // 添加缺失的右括号
+            for (int i = 0; i < leftCount - rightCount; i++) {
+                tempExpression += ")";
+            }
+
+            // 解析并计算表达式
+            double result = evaluateExpression(tempExpression);
+            
+            // 更新当前结果
+            if (!Double.isInfinite(result) && !Double.isNaN(result)) {
+                currentResult = formatNumber(result);
             } else {
-                sb.append(token);
+                currentResult = "";
+            }
+        } catch (Exception e) {
+            // 计算错误时不显示结果
+            currentResult = "";
+        }
+    }
+
+    /**
+     * 清除所有 (C)
+     */
+    public void clear() {
+        displayExpression = "";
+        currentResult = "0";
+        errorState = false;
+        errorMessage = "";
+        isInFunctionInput = false;
+        currentFunctionName = "";
+        functionParenthesisPos = -1;
+    }
+
+    /**
+     * 清除当前输入 (CE)
+     */
+    public void clearEntry() {
+        if (isInFunctionInput) {
+            // 仅清除函数参数
+            String parameter = extractFunctionParameter();
+            replaceFunctionParameter("");
+        } else {
+            // 清除最后输入的数字或操作符
+            String lastToken = extractLastToken();
+            if (!lastToken.isEmpty()) {
+                displayExpression = displayExpression.substring(0, displayExpression.length() - lastToken.length());
+                if (displayExpression.isEmpty()) {
+                    displayExpression = "0";
+                }
+            } else {
+                // 如果没有可清除的部分，清除全部
+                clear();
             }
         }
-        displayExpression = sb.toString().trim();
+
+        // 尝试实时计算结果
+        tryCalculateResult();
     }
-    
+
     /**
-     * 更新表达式
+     * 退格
      */
-    private void updateExpression() {
-        if (tokens.isEmpty()) {
-            displayExpression = currentInput;
-        } else {
-            // 构建除当前输入外的表达式部分
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < tokens.size(); i++) {
-                String token = tokens.get(i);
-                if (isOperator(token)) {
-                    sb.append(" ").append(token).append(" ");
-                } else {
-                    sb.append(token);
+    public void backspace() {
+        if (errorState) {
+            clear();
+            return;
+        }
+
+        if (!displayExpression.isEmpty()) {
+            // 删除最后一个字符
+            displayExpression = displayExpression.substring(0, displayExpression.length() - 1);
+            
+            // 如果删除后为空，设为0
+            if (displayExpression.isEmpty()) {
+                displayExpression = "0";
+            }
+            
+            // 检查是否还在函数输入模式
+            if (isInFunctionInput) {
+                int lastOpenParen = displayExpression.lastIndexOf("(");
+                if (lastOpenParen == -1 || !isFunctionName(displayExpression.substring(0, lastOpenParen))) {
+                    // 如果没有左括号或括号前不是函数名，退出函数输入模式
+                    isInFunctionInput = false;
+                    currentFunctionName = "";
+                    functionParenthesisPos = -1;
                 }
             }
             
-            // 如果最后一个token是操作符，添加当前输入
-            if (!isNewInput && !tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                sb.append(currentInput);
-            }
-            
-            displayExpression = sb.toString().trim();
+            // 尝试实时计算结果
+            tryCalculateResult();
         }
     }
-    
+
     /**
-     * 将中缀表达式转换为逆波兰表达式
-     * @param tokens 中缀表达式token列表
-     * @return 逆波兰表达式token列表
+     * 内存存储 (MS)
      */
-    private List<String> convertToRPN(List<String> tokens) {
-        // 确保输入有效
-        for (String token : tokens) {
-            // 检查所有token是否为操作符、括号或可解析为数字
-            if (!isOperator(token) && !token.equals("(") && !token.equals(")")) {
+    public void memoryStore() {
+        try {
+            if (!currentResult.isEmpty()) {
+                memory = Double.parseDouble(currentResult);
+            }
+        } catch (Exception e) {
+            // 忽略错误
+        }
+    }
+
+    /**
+     * 内存加 (M+)
+     */
+    public void memoryAdd() {
+        try {
+            if (!currentResult.isEmpty()) {
+                memory += Double.parseDouble(currentResult);
+            }
+        } catch (Exception e) {
+            // 忽略错误
+        }
+    }
+
+    /**
+     * 内存减 (M-)
+     */
+    public void memorySubtract() {
+        try {
+            if (!currentResult.isEmpty()) {
+                memory -= Double.parseDouble(currentResult);
+            }
+        } catch (Exception e) {
+            // 忽略错误
+        }
+    }
+
+    /**
+     * 内存调用 (MR)
+     */
+    public void memoryRecall() {
+        // 根据上下文决定如何插入内存值
+        String memValue = formatNumber(memory);
+        
+        if (isInFunctionInput) {
+            // 在函数参数中插入内存值
+            replaceFunctionParameter(memValue);
+        } else {
+            // 检查是否需要插入乘号
+            if (!displayExpression.isEmpty()) {
+                char lastChar = displayExpression.charAt(displayExpression.length() - 1);
+                if (Character.isDigit(lastChar) || lastChar == ')' || lastChar == '.' || 
+                    lastChar == 'π' || lastChar == 'e') {
+                    displayExpression += "×";
+                }
+            }
+            displayExpression += memValue;
+        }
+        
+        // 尝试实时计算结果
+        tryCalculateResult();
+    }
+
+    /**
+     * 内存清除 (MC)
+     */
+    public void memoryClear() {
+        memory = 0;
+    }
+
+    /**
+     * 设置错误状态
+     */
+    private void setErrorState(String message) {
+        errorState = true;
+        errorMessage = message;
+        currentResult = "";
+    }
+
+    // 辅助方法
+
+    /**
+     * 解析并计算表达式
+     */
+    private double evaluateExpression(String expression) {
+        // 替换特殊常量
+        expression = expression.replace("π", String.valueOf(Math.PI));
+        expression = expression.replace("e", String.valueOf(Math.E));
+        
+        // 处理特殊表达式，如平方(x²)、阶乘(x!)、绝对值(|x|)等
+        expression = processSpecialExpressions(expression);
+        
+        // 处理函数调用
+        expression = processFunctions(expression);
+        
+        // 转换为后缀表达式并计算
+        List<String> tokens = tokenizeExpression(expression);
+        List<String> rpnTokens = convertToRPN(tokens);
+        return evaluateRPN(rpnTokens);
+    }
+
+    /**
+     * 处理特殊表达式，如平方(x²)、阶乘(x!)、绝对值(|x|)等
+     */
+    private String processSpecialExpressions(String expression) {
+        StringBuilder processedExpr = new StringBuilder();
+        
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+            
+            if (c == '²') {
+                // 处理平方表达式
+                // 寻找前面的数字
+                int j = i - 1;
+                while (j >= 0 && (Character.isDigit(expression.charAt(j)) || 
+                                  expression.charAt(j) == '.' ||
+                                  expression.charAt(j) == 'e' ||
+                                  expression.charAt(j) == 'π' ||
+                                  (j > 0 && expression.charAt(j) == '-' && !Character.isDigit(expression.charAt(j-1))))) {
+                    j--;
+                }
+                
+                // 提取数值
+                String number = expression.substring(j + 1, i);
+                
                 try {
-                    Double.parseDouble(token);
+                    // 替换为平方值
+                    double value = Double.parseDouble(number);
+                    double squared = value * value;
+                    
+                    // 删除之前已追加的数字，并添加结果
+                    processedExpr.delete(processedExpr.length() - number.length(), processedExpr.length());
+                    processedExpr.append(formatNumber(squared));
                 } catch (NumberFormatException e) {
-                    // 如果既不是操作符、括号也不是数字，则抛出异常
-                    throw new RuntimeException("无效的表达式: 包含非法字符 '" + token + "'");
+                    // 如果不是有效数字，保留原始表达式
+                    processedExpr.append(c);
+                }
+            } else if (c == '!') {
+                // 处理阶乘表达式
+                // 寻找前面的数字
+                int j = i - 1;
+                while (j >= 0 && (Character.isDigit(expression.charAt(j)) || 
+                                 (j > 0 && expression.charAt(j) == '-' && !Character.isDigit(expression.charAt(j-1))))) {
+                    j--;
+                }
+                
+                // 提取数值
+                String number = expression.substring(j + 1, i);
+                
+                try {
+                    // 计算阶乘
+                    double value = Double.parseDouble(number);
+                    
+                    // 检查是否为非负整数
+                    if (value < 0 || value != Math.floor(value)) {
+                        throw new RuntimeException("阶乘只适用于非负整数");
+                    }
+                    
+                    // 计算阶乘
+                    double result = 1;
+                    for (int k = 2; k <= value; k++) {
+                        result *= k;
+                    }
+                    
+                    // 删除之前已追加的数字，并添加结果
+                    processedExpr.delete(processedExpr.length() - number.length(), processedExpr.length());
+                    processedExpr.append(formatNumber(result));
+                } catch (NumberFormatException e) {
+                    // 如果不是有效数字，保留原始表达式
+                    processedExpr.append(c);
+                }
+            } else if (c == '|') {
+                // 处理绝对值表达式
+                // 找到匹配的闭合竖线
+                int closePos = expression.indexOf('|', i + 1);
+                if (closePos > i) {
+                    // 提取绝对值内的内容
+                    String absContent = expression.substring(i + 1, closePos);
+                    
+                    try {
+                        // 计算内容的值
+                        double value = evaluateExpression(absContent);
+                        double absValue = Math.abs(value);
+                        
+                        // 添加绝对值计算结果
+                        processedExpr.append(formatNumber(absValue));
+                        
+                        // 跳过已处理的内容
+                        i = closePos;
+                    } catch (Exception e) {
+                        // 如果计算错误，保留原始表达式
+                        processedExpr.append(c);
+                    }
+                } else {
+                    // 如果没有找到匹配的闭合竖线，保留原始字符
+                    processedExpr.append(c);
+                }
+            } else {
+                // 其他字符直接添加
+                processedExpr.append(c);
+            }
+        }
+        
+        return processedExpr.toString();
+    }
+
+    /**
+     * 处理函数调用
+     */
+    private String processFunctions(String expression) {
+        // 处理所有的函数调用，从内到外
+        boolean containsFunction = true;
+        while (containsFunction) {
+            containsFunction = false;
+            
+            // 查找函数调用模式: 函数名(参数)
+            int pos = 0;
+            while (pos < expression.length()) {
+                // 查找函数名
+                int funcStart = -1;
+                String funcName = "";
+                
+                // 检查常见函数名
+                String[] functionNames = {"arcsin", "arccos", "arctan", "sin", "cos", "tan", "log10", "ln", "sqrt", "abs"};
+                for (String name : functionNames) {
+                    if (pos + name.length() <= expression.length() && 
+                        expression.substring(pos, pos + name.length()).equals(name) && 
+                        pos + name.length() < expression.length() && 
+                        expression.charAt(pos + name.length()) == '(') {
+                        funcStart = pos;
+                        funcName = name;
+                        pos += name.length();
+                        break;
+                    }
+                }
+                
+                // 如果找到函数名
+                if (funcStart >= 0) {
+                    // 查找匹配的右括号
+                    int parenCount = 1; // 已找到一个左括号
+                    int parenEnd = -1;
+                    for (int i = pos + 1; i < expression.length(); i++) {
+                        if (expression.charAt(i) == '(') {
+                            parenCount++;
+                        } else if (expression.charAt(i) == ')') {
+                            parenCount--;
+                            if (parenCount == 0) {
+                                parenEnd = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 如果找到匹配的右括号
+                    if (parenEnd > pos) {
+                        // 提取参数表达式并递归求值
+                        String paramExpr = expression.substring(pos + 1, parenEnd);
+                        double paramValue = evaluateExpression(paramExpr);
+                        
+                        // 应用函数并获取结果
+                        double result = 0;
+                        try {
+                            switch (funcName) {
+                                case "sin":
+                                    if (isUsingRadianMode) {
+                                        result = Math.sin(paramValue);
+                                    } else {
+                                        // 角度转弧度后计算
+                                        result = Math.sin(Math.toRadians(paramValue));
+                                    }
+                                    break;
+                                case "cos":
+                                    if (isUsingRadianMode) {
+                                        result = Math.cos(paramValue);
+                                    } else {
+                                        // 角度转弧度后计算
+                                        result = Math.cos(Math.toRadians(paramValue));
+                                    }
+                                    break;
+                                case "tan":
+                                    if (isUsingRadianMode) {
+                                        result = Math.tan(paramValue);
+                                    } else {
+                                        // 角度转弧度后计算
+                                        result = Math.tan(Math.toRadians(paramValue));
+                                    }
+                                    break;
+                                case "arcsin":
+                                    if (paramValue < -1 || paramValue > 1) {
+                                        throw new RuntimeException("反正弦函数参数必须在[-1,1]之间");
+                                    }
+                                    if (isUsingRadianMode) {
+                                        result = Math.asin(paramValue);
+                                    } else {
+                                        // 计算结果弧度转角度
+                                        result = Math.toDegrees(Math.asin(paramValue));
+                                    }
+                                    break;
+                                case "arccos":
+                                    if (paramValue < -1 || paramValue > 1) {
+                                        throw new RuntimeException("反余弦函数参数必须在[-1,1]之间");
+                                    }
+                                    if (isUsingRadianMode) {
+                                        result = Math.acos(paramValue);
+                                    } else {
+                                        // 计算结果弧度转角度
+                                        result = Math.toDegrees(Math.acos(paramValue));
+                                    }
+                                    break;
+                                case "arctan":
+                                    if (isUsingRadianMode) {
+                                        result = Math.atan(paramValue);
+                                    } else {
+                                        // 计算结果弧度转角度
+                                        result = Math.toDegrees(Math.atan(paramValue));
+                                    }
+                                    break;
+                                case "log10":
+                                    if (paramValue <= 0) {
+                                        throw new RuntimeException("对数函数参数必须为正数");
+                                    }
+                                    result = Math.log10(paramValue);
+                                    break;
+                                case "ln":
+                                    if (paramValue <= 0) {
+                                        throw new RuntimeException("对数函数参数必须为正数");
+                                    }
+                                    result = Math.log(paramValue);
+                                    break;
+                                case "sqrt":
+                                    if (paramValue < 0) {
+                                        throw new RuntimeException("平方根函数参数必须为非负数");
+                                    }
+                                    result = Math.sqrt(paramValue);
+                                    break;
+                                case "abs":
+                                    result = Math.abs(paramValue);
+                                    break;
+                                default:
+                                    throw new RuntimeException("未知函数: " + funcName);
+                            }
+                            
+                            // 替换函数调用为结果
+                            expression = expression.substring(0, funcStart) + 
+                                       formatNumber(result) + 
+                                       expression.substring(parenEnd + 1);
+                            
+                            // 重置位置，继续查找下一个函数
+                            pos = funcStart;
+                            containsFunction = true;
+                        } catch (Exception e) {
+                            throw new RuntimeException("函数计算错误: " + e.getMessage());
+                        }
+                    } else {
+                        pos = funcStart + funcName.length() + 1;
+                    }
+                } else {
+                    pos++;
                 }
             }
         }
         
+        return expression;
+    }
+
+    /**
+     * 将表达式分割成token
+     */
+    private List<String> tokenizeExpression(String expression) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder numBuilder = new StringBuilder();
+        boolean numberStarted = false;
+        
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+            
+            // 处理数字、小数点和科学计数法
+            if (Character.isDigit(c) || c == '.') {
+                numBuilder.append(c);
+                numberStarted = true;
+                continue;
+            }
+            
+            // 处理科学计数法表示
+            if ((c == 'e' || c == 'E') && numberStarted) {
+                // 只有在数字已经开始且下一个字符是数字或正负号时，才视为科学计数法
+                if (i + 1 < expression.length() && 
+                    (Character.isDigit(expression.charAt(i + 1)) || 
+                     expression.charAt(i + 1) == '+' || 
+                     expression.charAt(i + 1) == '-')) {
+                    
+                    numBuilder.append(c); // 添加e或E字符
+                    
+                    // 添加可能的正负号
+                    if (i + 1 < expression.length() && 
+                        (expression.charAt(i + 1) == '+' || expression.charAt(i + 1) == '-')) {
+                        numBuilder.append(expression.charAt(i + 1));
+                        i++; // 跳过符号
+                    }
+                    
+                    // 添加指数部分的数字
+                    while (i + 1 < expression.length() && Character.isDigit(expression.charAt(i + 1))) {
+                        numBuilder.append(expression.charAt(i + 1));
+                        i++;
+                    }
+                    
+                    continue;
+                }
+            }
+            
+            // 处理负号
+            if (c == '-') {
+                // 如果负号前面是操作符或左括号或是表达式的开始，视为负号
+                if (i == 0 || expression.charAt(i - 1) == '(' || 
+                    "+-×÷%^".indexOf(expression.charAt(i - 1)) >= 0) {
+                    numBuilder.append(c);
+                    numberStarted = true;
+                    continue;
+                }
+            }
+            
+            // 如果之前有数字在构建中，添加到tokens
+            if (numberStarted) {
+                tokens.add(numBuilder.toString());
+                numBuilder.setLength(0);
+                numberStarted = false;
+            }
+            
+            // 处理操作符和括号
+            if (c == '+' || c == '-' || c == '×' || c == '÷' || c == '(' || c == ')' || c == '%' || c == '^') {
+                tokens.add(String.valueOf(c));
+            }
+        }
+        
+        // 添加最后一个数字（如果有）
+        if (numberStarted) {
+            tokens.add(numBuilder.toString());
+        }
+        
+        return tokens;
+    }
+
+    /**
+     * 将中缀表达式转换为后缀表达式(RPN)
+     */
+    private List<String> convertToRPN(List<String> tokens) {
         List<String> output = new ArrayList<>();
         Stack<String> operatorStack = new Stack<>();
         
         for (String token : tokens) {
-            if (isOperator(token)) {
-                while (!operatorStack.isEmpty() && 
-                       isOperator(operatorStack.peek()) && 
-                       getPrecedence(operatorStack.peek()) >= getPrecedence(token)) {
-                    output.add(operatorStack.pop());
-                }
+            // 数字直接加入输出
+            if (!isOperator(token) && !token.equals("(") && !token.equals(")")) {
+                output.add(token);
+            }
+            // 左括号压入栈
+            else if (token.equals("(")) {
                 operatorStack.push(token);
-            } else if (token.equals("(")) {
-                operatorStack.push(token);
-            } else if (token.equals(")")) {
+            }
+            // 右括号处理
+            else if (token.equals(")")) {
                 while (!operatorStack.isEmpty() && !operatorStack.peek().equals("(")) {
                     output.add(operatorStack.pop());
                 }
@@ -513,13 +982,19 @@ public class CalculatorModel {
                 } else {
                     throw new RuntimeException("括号不匹配");
                 }
-            } else {
-                // 数字直接添加到输出
-                output.add(token);
+            }
+            // 操作符处理
+            else if (isOperator(token)) {
+                while (!operatorStack.isEmpty() && 
+                       isOperator(operatorStack.peek()) && 
+                       getPrecedence(operatorStack.peek()) >= getPrecedence(token)) {
+                    output.add(operatorStack.pop());
+                }
+                operatorStack.push(token);
             }
         }
         
-        // 将剩余的操作符添加到输出
+        // 处理栈中剩余的操作符
         while (!operatorStack.isEmpty()) {
             if (operatorStack.peek().equals("(")) {
                 throw new RuntimeException("括号不匹配");
@@ -529,39 +1004,9 @@ public class CalculatorModel {
         
         return output;
     }
-    
+
     /**
-     * 判断是否为操作符
-     * @param token 待检查的token
-     * @return 是否为操作符
-     */
-    private boolean isOperator(String token) {
-        return token.equals("+") || token.equals("-") || 
-               token.equals("×") || token.equals("÷");
-    }
-    
-    /**
-     * 获取操作符优先级
-     * @param operator 操作符
-     * @return 优先级（数字越大优先级越高）
-     */
-    private int getPrecedence(String operator) {
-        switch (operator) {
-            case "+":
-            case "-":
-                return 1;
-            case "×":
-            case "÷":
-                return 2;
-            default:
-                return 0;
-        }
-    }
-    
-    /**
-     * 计算逆波兰表达式的值
-     * @param rpnTokens 逆波兰表达式token列表
-     * @return 计算结果
+     * 计算后缀表达式(RPN)
      */
     private double evaluateRPN(List<String> rpnTokens) {
         Stack<Double> stack = new Stack<>();
@@ -573,6 +1018,7 @@ public class CalculatorModel {
                 }
                 double b = stack.pop();
                 double a = stack.pop();
+                
                 switch (token) {
                     case "+":
                         stack.push(a + b);
@@ -585,9 +1031,18 @@ public class CalculatorModel {
                         break;
                     case "÷":
                         if (b == 0) {
-                            throw new RuntimeException("不能除以0");
+                            throw new RuntimeException("除数不能为零");
                         }
                         stack.push(a / b);
+                        break;
+                    case "%":
+                        if (b == 0) {
+                            throw new RuntimeException("除数不能为零");
+                        }
+                        stack.push(a % b); // 取余运算
+                        break;
+                    case "^":
+                        stack.push(Math.pow(a, b)); // 幂运算
                         break;
                 }
             } else {
@@ -601,604 +1056,193 @@ public class CalculatorModel {
         
         return stack.pop();
     }
-    
+
     /**
-     * 处理百分比操作
+     * 获取操作符优先级
      */
-    public void calculatePercent() {
-        if (!errorState) {
-            try {
-                double value = Double.parseDouble(currentInput);
-                value = value / 100;
-                currentInput = formatNumber(value);
-                
-                // 更新表达式
-                updateExpression();
-                
-                // 尝试实时计算结果
-                calculateInRealTime();
-            } catch (Exception e) {
-                setErrorState("百分比计算错误");
-            }
+    private int getPrecedence(String operator) {
+        switch (operator) {
+            case "+":
+            case "-":
+                return 1;
+            case "×":
+            case "÷":
+            case "%":
+                return 2;
+            case "^":
+                return 3;
+            default:
+                return 0;
         }
     }
-    
+
     /**
-     * 计算平方根
+     * 判断字符串是否为操作符
      */
-    public void calculateSquareRoot() {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        // 进入平方根函数输入模式
-        inFunctionInput = true;
-        currentFunction = "√";
-        functionArgument = "";
-        
-        // 更新表达式显示
-        updateFunctionExpression();
+    private boolean isOperator(String token) {
+        return token.equals("+") || token.equals("-") || 
+               token.equals("×") || token.equals("÷") ||
+               token.equals("%") || token.equals("^");
     }
-    
+
     /**
-     * 计算平方
+     * 提取函数参数
      */
-    public void calculateSquare() {
-        if (errorState) {
-            clear();
+    private String extractFunctionParameter() {
+        if (!isInFunctionInput || functionParenthesisPos == -1) {
+            return "";
         }
         
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        try {
-            double value = Double.parseDouble(currentInput);
-            double squareResult = value * value;
-            
-            // 保存计算前的表达式
-            String functionExpr = "sqr(" + formatNumber(value) + ")";
-            
-            // 更新计算结果
-            currentInput = formatNumber(squareResult);
-            
-            // 更新tokens和表达式
-            if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算
-                displayExpression = functionExpr;
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
-                displayExpression += functionExpr;
-            } else {
-                // 其他情况，例如在一个数字后点击了函数按钮，替换最后一个token
-                tokens.remove(tokens.size() - 1);
-                displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
-            }
-            
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
-            
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("计算错误");
+        int closingPos = displayExpression.lastIndexOf(')');
+        if (closingPos != -1 && closingPos > functionParenthesisPos) {
+            // 如果有右括号，返回括号内的内容
+            return displayExpression.substring(functionParenthesisPos + 1, closingPos);
+        } else {
+            // 否则返回左括号后的所有内容
+            return displayExpression.substring(functionParenthesisPos + 1);
         }
     }
-    
+
     /**
-     * 计算倒数
+     * 替换函数参数
      */
-    public void calculateReciprocal() {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        try {
-            double value = Double.parseDouble(currentInput);
-            
-            if (value == 0) {
-                setErrorState("不能除以0");
-                return;
-            }
-            
-            double reciprocalResult = 1 / value;
-            
-            // 保存计算前的表达式
-            String functionExpr = "1/(" + formatNumber(value) + ")";
-            
-            // 更新计算结果
-            currentInput = formatNumber(reciprocalResult);
-            
-            // 更新tokens和表达式
-            if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算
-                displayExpression = functionExpr;
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
-                displayExpression += functionExpr;
-            } else {
-                // 其他情况，例如在一个数字后点击了函数按钮，替换最后一个token
-                tokens.remove(tokens.size() - 1);
-                displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
-            }
-            
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
-            
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("计算错误");
-        }
-    }
-    
-    /**
-     * 计算三角函数
-     * @param type 三角函数类型 (sin, cos, tan)
-     */
-    public void calculateTrigFunction(String type) {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        // 进入三角函数输入模式
-        inFunctionInput = true;
-        currentFunction = type;
-        functionArgument = "";
-        
-        // 更新表达式显示
-        updateFunctionExpression();
-    }
-    
-    /**
-     * 使用圆周率 Pi
-     */
-    public void usePi() {
-        if (errorState) {
-            clear();
-        }
-        
-        if (replaceExpressionWithResult) {
-            // 如果显示结果状态，清除之前的运算
-            clear();
-            replaceExpressionWithResult = false;
-        }
-        
-        currentInput = formatNumber(Math.PI);
-        updateExpression();
-        isNewInput = false;
-        
-        // 尝试实时计算结果
-        calculateInRealTime();
-    }
-    
-    /**
-     * 使用自然常数 e
-     */
-    public void useE() {
-        if (errorState) {
-            clear();
-        }
-        
-        if (replaceExpressionWithResult) {
-            // 如果显示结果状态，清除之前的运算
-            clear();
-            replaceExpressionWithResult = false;
-        }
-        
-        currentInput = formatNumber(Math.E);
-        updateExpression();
-        isNewInput = false;
-        
-        // 尝试实时计算结果
-        calculateInRealTime();
-    }
-    
-    /**
-     * 计算阶乘
-     */
-    public void calculateFactorial() {
-        if (errorState) {
-            clear();
+    private void replaceFunctionParameter(String newParameter) {
+        if (!isInFunctionInput || functionParenthesisPos == -1) {
             return;
         }
         
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
+        int closingPos = displayExpression.lastIndexOf(')');
+        if (closingPos != -1 && closingPos > functionParenthesisPos) {
+            // 如果有右括号，替换括号内的内容
+            displayExpression = displayExpression.substring(0, functionParenthesisPos + 1) + 
+                              newParameter + 
+                              displayExpression.substring(closingPos);
+        } else {
+            // 否则替换左括号后的所有内容，并添加右括号
+            displayExpression = displayExpression.substring(0, functionParenthesisPos + 1) + 
+                              newParameter + ")";
+        }
+    }
+
+    /**
+     * 在函数内插入内容
+     */
+    private void insertIntoFunction(String content) {
+        if (!isInFunctionInput || functionParenthesisPos == -1) {
+            return;
         }
         
-        // 阶乘操作不需要输入模式，直接计算当前输入值的阶乘
-        try {
-            double value = Double.parseDouble(currentInput);
-            
-            // 检查是否为非负整数
-            if (value < 0 || value != Math.floor(value)) {
-                setErrorState("阶乘只适用于非负整数");
-                return;
+        int closingPos = displayExpression.lastIndexOf(')');
+        if (closingPos != -1 && closingPos > functionParenthesisPos) {
+            // 如果有右括号，在右括号前插入
+            displayExpression = displayExpression.substring(0, closingPos) + 
+                              content + 
+                              displayExpression.substring(closingPos);
+        } else {
+            // 否则直接在表达式末尾添加内容
+            displayExpression += content;
+        }
+    }
+
+    /**
+     * 提取表达式中的最后一个数字
+     */
+    private String extractLastNumber() {
+        if (displayExpression.isEmpty()) {
+            return "";
+        }
+        
+        int i = displayExpression.length() - 1;
+        // 跳过最后的右括号
+        while (i >= 0 && displayExpression.charAt(i) == ')') {
+            i--;
+        }
+        
+        int end = i + 1;
+        // 向前寻找非数字、非小数点、非负号、非科学计数法的字符
+        while (i >= 0) {
+            char c = displayExpression.charAt(i);
+            // 处理普通数字部分（数字和小数点）
+            if (Character.isDigit(c) || c == '.') {
+                i--;
+                continue;
             }
             
-            // 计算阶乘
-            double result = 1;
-            for (int i = 2; i <= value; i++) {
-                result *= i;
-                // 检查溢出
-                if (Double.isInfinite(result)) {
-                    setErrorState("结果太大");
-                    return;
+            // 处理科学计数法中的e和E
+            if ((c == 'e' || c == 'E') && i > 0) {
+                // 确保e或E之前有数字（即确实属于科学计数法）
+                boolean hasDigitBefore = false;
+                for (int j = i - 1; j >= 0; j--) {
+                    if (Character.isDigit(displayExpression.charAt(j))) {
+                        hasDigitBefore = true;
+                        break;
+                    } else if (displayExpression.charAt(j) != '.' && displayExpression.charAt(j) != '-') {
+                        break;
+                    }
+                }
+                
+                if (hasDigitBefore) {
+                    i--;
+                    continue;
                 }
             }
             
-            // 保存计算前的表达式
-            String functionExpr = formatNumber(value) + "!";
-            
-            // 更新计算结果
-            currentInput = formatNumber(result);
-            
-            // 更新tokens和表达式
-            if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算
-                displayExpression = functionExpr;
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
-                displayExpression += functionExpr;
-            } else {
-                // 其他情况，例如在一个数字后点击了函数按钮，替换最后一个token
-                tokens.remove(tokens.size() - 1);
-                displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
+            // 处理科学计数法中e或E后面的正负号
+            if ((c == '+' || c == '-') && i > 0) {
+                char prev = displayExpression.charAt(i - 1);
+                if (prev == 'e' || prev == 'E') {
+                    i--;
+                    continue;
+                }
             }
             
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
+            // 处理负数的负号（只有在开头或者之前是操作符时才视为负号的一部分）
+            if (c == '-') {
+                if (i == 0 || !Character.isDigit(displayExpression.charAt(i - 1))) {
+                    i--;
+                    continue;
+                }
             }
             
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("计算错误");
+            // 不是数字的一部分，停止搜索
+            break;
         }
+        
+        return displayExpression.substring(i + 1, end);
     }
-    
+
     /**
-     * 计算对数 (lg - 常用对数)
+     * 提取表达式中的最后一个token（数字或操作符）
      */
-    public void calculateLog10() {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        // 进入对数函数输入模式
-        inFunctionInput = true;
-        currentFunction = "lg";
-        functionArgument = "";
-        
-        // 更新表达式显示
-        updateFunctionExpression();
-    }
-    
-    /**
-     * 计算自然对数 (ln)
-     */
-    public void calculateLn() {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        // 进入自然对数函数输入模式
-        inFunctionInput = true;
-        currentFunction = "ln";
-        functionArgument = "";
-        
-        // 更新表达式显示
-        updateFunctionExpression();
-    }
-    
-    /**
-     * 计算幂 (x^y)
-     */
-    public void calculatePower() {
-        if (errorState) {
-            clear();
-        }
-        
-        // 如果当前在输入函数参数，先完成上一个函数的计算
-        if (inFunctionInput) {
-            completeFunctionInput();
-        }
-        
-        try {
-            double base = Double.parseDouble(currentInput);
-            double result = Math.pow(base, 2); // 默认平方
-            
-            // 保存计算前的表达式
-            String functionExpr = formatNumber(base) + "²";
-            
-            // 更新计算结果
-            currentInput = formatNumber(result);
-            
-            // 更新tokens和表达式
-            if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算
-                displayExpression = functionExpr;
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
-                displayExpression += functionExpr;
-            } else {
-                // 其他情况，例如在一个数字后点击了函数按钮，替换最后一个token
-                tokens.remove(tokens.size() - 1);
-                displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
-            }
-            
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
-            }
-            
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("计算错误");
-        }
-    }
-    
-    /**
-     * 清除当前输入 (CE)
-     */
-    public void clearEntry() {
-        // 如果在函数输入模式，清空函数参数
-        if (inFunctionInput) {
-            functionArgument = "";
-            updateFunctionExpression();
-            return;
-        }
-        
-        currentInput = "0";
-        isNewInput = true;
-        errorState = false;
-        
-        // 更新当前结果
-        currentResult = "0";
-        
-        if (!replaceExpressionWithResult) {
-            // 如果不是显示结果状态，只清除当前输入
-            updateExpression();
-        } else {
-            // 如果是显示结果状态，清除全部
-            clear();
-        }
-    }
-    
-    /**
-     * 清除所有 (C)
-     */
-    public void clear() {
-        currentInput = "0";
-        displayExpression = "";
-        currentResult = "0";
-        isNewInput = true;
-        errorState = false;
-        replaceExpressionWithResult = false;
-        tokens.clear();
-        
-        // 清除函数输入状态
-        inFunctionInput = false;
-        currentFunction = "";
-        functionArgument = "";
-    }
-    
-    /**
-     * 退格
-     */
-    public void backspace() {
-        if (errorState) {
-            clear();
-            return;
-        }
-        
-        // 如果在函数输入模式中，删除函数参数的最后一个字符
-        if (inFunctionInput) {
-            if (functionArgument.length() > 0) {
-                functionArgument = functionArgument.substring(0, functionArgument.length() - 1);
-                // 更新表达式显示
-                updateFunctionExpression();
-            } else {
-                // 如果函数参数为空，退出函数输入模式
-                inFunctionInput = false;
-                currentFunction = "";
-                displayExpression = currentInput;
-            }
-            return;
-        }
-        
-        if (!isNewInput) {
-            if (currentInput.length() > 1) {
-                currentInput = currentInput.substring(0, currentInput.length() - 1);
-            } else {
-                currentInput = "0";
-                isNewInput = true;
-            }
-            
-            // 更新表达式
-            updateExpression();
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } else if (replaceExpressionWithResult) {
-            // 在显示结果状态下，退格相当于清除所有
-            clear();
-        }
-    }
-    
-    /**
-     * 更新显示表达式
-     */
-    private void updateDisplayExpression() {
-        // 如果是刚刚清除过或者表达式为空，直接使用当前输入
+    private String extractLastToken() {
         if (displayExpression.isEmpty()) {
-            displayExpression = currentInput;
-        } else if (displayExpression.endsWith(" ")) {
-            // 如果表达式以空格结尾，说明上一个是操作符，附加当前输入
-            displayExpression += currentInput;
-        } else {
-            // 否则，更新最后一个数字
-            int lastOpIndex = Math.max(
-                displayExpression.lastIndexOf(" + "),
-                Math.max(
-                    displayExpression.lastIndexOf(" - "),
-                    Math.max(
-                        displayExpression.lastIndexOf(" × "),
-                        displayExpression.lastIndexOf(" ÷ ")
-                    )
-                )
-            );
-            
-            if (lastOpIndex >= 0) {
-                // 有操作符，用当前输入替换操作符后的内容
-                displayExpression = displayExpression.substring(0, lastOpIndex + 3) + currentInput;
-            } else {
-                // 没有操作符，整个表达式就是当前输入
-                displayExpression = currentInput;
+            return "";
+        }
+        
+        // 检查最后一个字符是否为操作符
+        if (isOperator(displayExpression.substring(displayExpression.length() - 1))) {
+            return displayExpression.substring(displayExpression.length() - 1);
+        }
+        
+        // 否则尝试提取最后一个数字
+        return extractLastNumber();
+    }
+
+    /**
+     * 判断字符串是否为函数名
+     */
+    private boolean isFunctionName(String str) {
+        String[] functionNames = {"sin", "cos", "tan", "arcsin", "arccos", "arctan", "log", "ln", "sqrt"};
+        for (String name : functionNames) {
+            if (str.endsWith(name)) {
+                return true;
             }
         }
+        return false;
     }
-    
+
     /**
-     * 内存存储 (MS)
-     */
-    public void memoryStore() {
-        if (!errorState) {
-            try {
-                memory = Double.parseDouble(currentInput);
-            } catch (Exception e) {
-                // 忽略错误
-            }
-        }
-    }
-    
-    /**
-     * 内存加 (M+)
-     */
-    public void memoryAdd() {
-        if (!errorState) {
-            try {
-                memory += Double.parseDouble(currentInput);
-            } catch (Exception e) {
-                // 忽略错误
-            }
-        }
-    }
-    
-    /**
-     * 内存减 (M-)
-     */
-    public void memorySubtract() {
-        if (!errorState) {
-            try {
-                memory -= Double.parseDouble(currentInput);
-            } catch (Exception e) {
-                // 忽略错误
-            }
-        }
-    }
-    
-    /**
-     * 内存调用 (MR)
-     */
-    public void memoryRecall() {
-        if (!errorState) {
-            currentInput = formatNumber(memory);
-            
-            if (replaceExpressionWithResult) {
-                clear();
-                replaceExpressionWithResult = false;
-            }
-            
-            updateExpression();
-            isNewInput = false;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        }
-    }
-    
-    /**
-     * 内存清除 (MC)
-     */
-    public void memoryClear() {
-        memory = 0;
-    }
-    
-    /**
-     * 设置错误状态
-     * @param errorMessage 错误信息
-     */
-    private void setErrorState(String errorMessage) {
-        errorState = true;
-        currentInput = errorMessage;
-        displayExpression = "错误";
-        currentResult = "";
-        tokens.clear();
-    }
-    
-    /**
-     * 格式化数字显示
-     * @param number 需要格式化的数字
-     * @return 格式化后的字符串
+     * 格式化数字
      */
     private String formatNumber(double number) {
         // 移除不必要的小数部分
@@ -1210,130 +1254,437 @@ public class CalculatorModel {
     }
 
     /**
-     * 完成幂运算
+     * 处理百分比操作
      */
-    public void completePowerCalculation() {
-        if (!errorState) {
-            calculatePower(); // 重定向到calculatePower方法
+    public void calculatePercent() {
+        if (errorState) {
+            clear();
+            return;
         }
-    }
-
-    /**
-     * 更新函数表达式显示
-     */
-    private void updateFunctionExpression() {
-        // 构建函数表达式，例如：sin(45)
-        String arg = functionArgument.isEmpty() ? "" : functionArgument;
-        displayExpression = currentFunction + "(" + arg + ")";
-        currentInput = arg.isEmpty() ? "0" : arg;
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            String parameter = extractFunctionParameter();
+            if (!parameter.isEmpty()) {
+                try {
+                    double value = Double.parseDouble(parameter);
+                    value = value / 100;
+                    replaceFunctionParameter(formatNumber(value));
+                } catch (Exception e) {
+                    setErrorState("百分比计算错误");
+                }
+            }
+        } else {
+            // 提取最后一个数字
+            String lastNumber = extractLastNumber();
+            if (!lastNumber.isEmpty()) {
+                try {
+                    double value = Double.parseDouble(lastNumber);
+                    value = value / 100;
+                    
+                    // 替换最后一个数字
+                    int lastPos = displayExpression.lastIndexOf(lastNumber);
+                    displayExpression = displayExpression.substring(0, lastPos) + 
+                                      formatNumber(value) + 
+                                      displayExpression.substring(lastPos + lastNumber.length());
+                    
+                    // 尝试实时计算结果
+                    tryCalculateResult();
+                } catch (Exception e) {
+                    setErrorState("百分比计算错误");
+                }
+            }
+        }
     }
     
     /**
-     * 完成函数输入并计算结果
+     * 计算平方
      */
-    private void completeFunctionInput() {
-        if (!inFunctionInput) return;
+    public void calculateSquare() {
+        if (errorState) {
+            clear();
+            return;
+        }
         
-        try {
-            // 如果没有输入参数，默认使用当前输入值
-            if (functionArgument.isEmpty()) {
-                functionArgument = currentInput;
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                double result = value * value;
+                
+                // 构建平方表达式
+                String squareExpr = formatNumber(value) + "²";
+                
+                // 替换最后一个数字为平方表达式
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  squareExpr + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("平方计算错误");
             }
-            
-            double value = Double.parseDouble(functionArgument);
-            double result = 0;
-            
-            // 根据函数类型计算
-            switch (currentFunction) {
-                case "sin":
-                    result = Math.sin(Math.toRadians(value));
-                    break;
-                case "cos":
-                    result = Math.cos(Math.toRadians(value));
-                    break;
-                case "tan":
-                    result = Math.tan(Math.toRadians(value));
-                    break;
-                case "lg":
-                    if (value <= 0) {
-                        setErrorState("必须为正数");
-                        return;
-                    }
-                    result = Math.log10(value);
-                    break;
-                case "ln":
-                    if (value <= 0) {
-                        setErrorState("必须为正数");
-                        return;
-                    }
-                    result = Math.log(value);
-                    break;
-                case "√":
-                    if (value < 0) {
-                        setErrorState("负数不能开平方");
-                        return;
-                    }
-                    result = Math.sqrt(value);
-                    break;
-                default:
-                    setErrorState("未知函数");
+        }
+    }
+    
+    /**
+     * 计算倒数
+     */
+    public void calculateReciprocal() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                
+                if (value == 0) {
+                    setErrorState("除数不能为零");
                     return;
+                }
+                
+                double result = 1 / value;
+                
+                // 构建倒数表达式
+                String reciprocalExpr = "1/(" + formatNumber(value) + ")";
+                
+                // 替换最后一个数字为倒数表达式
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  reciprocalExpr + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("倒数计算错误");
             }
-            
-            // 保存计算前的表达式用于显示
-            String functionExpr = currentFunction + "(" + functionArgument + ")";
-            
-            // 退出函数输入模式
-            inFunctionInput = false;
-            currentFunction = "";
-            functionArgument = "";
-            
-            // 更新计算结果
-            currentInput = formatNumber(result);
-            
-            // 更新tokens和表达式
-            if (tokens.isEmpty()) {
-                // 如果tokens为空，这是一个全新的计算，清除tokens，不要加入0
-                displayExpression = functionExpr;
-            } else if (isOperator(tokens.get(tokens.size() - 1))) {
-                // 如果最后一个token是操作符，表达式已经包含操作符，添加函数表达式
-                displayExpression += functionExpr;
-            } else {
-                // 其他情况，例如在一个数字后点击了函数按钮，替换最后一个token
-                tokens.remove(tokens.size() - 1);
-                displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
+        }
+    }
+    
+    /**
+     * 计算阶乘
+     */
+    public void calculateFactorial() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                
+                // 检查是否为非负整数
+                if (value < 0 || value != Math.floor(value)) {
+                    setErrorState("阶乘只适用于非负整数");
+                    return;
+                }
+                
+                // 计算阶乘
+                double result = 1;
+                for (int i = 2; i <= value; i++) {
+                    result *= i;
+                    // 检查溢出
+                    if (Double.isInfinite(result)) {
+                        setErrorState("结果太大");
+                        return;
+                    }
+                }
+                
+                // 构建阶乘表达式
+                String factorialExpr = formatNumber(value) + "!";
+                
+                // 替换最后一个数字为阶乘表达式
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  factorialExpr + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("阶乘计算错误");
             }
-            
-            // 将当前计算结果添加到tokens中，以便后续操作
-            // 先清除tokens可能存在的不完整表达式
-            while (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
-                tokens.remove(tokens.size() - 1);
+        }
+    }
+    
+    /**
+     * 开始平方根函数输入
+     */
+    public void calculateSquareRoot() {
+        startFunctionInput("sqrt");
+    }
+    
+    /**
+     * 开始对数函数输入
+     */
+    public void calculateLog10() {
+        startFunctionInput("log10");
+    }
+    
+    /**
+     * 开始自然对数函数输入
+     */
+    public void calculateLn() {
+        startFunctionInput("ln");
+    }
+    
+    /**
+     * 开始三角函数输入
+     * @param type 三角函数类型 (sin, cos, tan)
+     * @param isRadianMode 是否使用弧度制，true为弧度制，false为角度制
+     */
+    public void calculateTrigFunction(String type, boolean isRadianMode) {
+        this.isUsingRadianMode = isRadianMode;
+        startFunctionInput(type);
+    }
+    
+    /**
+     * 开始反三角函数输入
+     * @param type 三角函数类型 (sin, cos, tan)
+     * @param isRadianMode 是否使用弧度制，true为弧度制，false为角度制
+     */
+    public void calculateInverseTrigFunction(String type, boolean isRadianMode) {
+        this.isUsingRadianMode = isRadianMode;
+        startFunctionInput("arc" + type);
+    }
+    
+    /**
+     * 开始三角函数输入（默认使用弧度制）
+     * @param type 三角函数类型 (sin, cos, tan)
+     * @deprecated 使用 {@link #calculateTrigFunction(String, boolean)} 代替
+     */
+    public void calculateTrigFunction(String type) {
+        calculateTrigFunction(type, true);
+    }
+    
+    /**
+     * 开始反三角函数输入（默认使用弧度制）
+     * @param type 三角函数类型 (sin, cos, tan)
+     * @deprecated 使用 {@link #calculateInverseTrigFunction(String, boolean)} 代替
+     */
+    public void calculateInverseTrigFunction(String type) {
+        calculateInverseTrigFunction(type, true);
+    }
+    
+    /**
+     * 使用圆周率π
+     */
+    public void usePi() {
+        addConstant("π", Math.PI);
+    }
+    
+    /**
+     * 使用自然常数e
+     */
+    public void useE() {
+        addConstant("e", Math.E);
+    }
+    
+    /**
+     * 计算幂
+     */
+    public void calculatePower() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                
+                // 添加幂运算符，让用户输入指数
+                // 替换最后一个数字为底数加幂运算符
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                   formatNumber(value) + "^" + 
+                                   displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 不需要立即计算结果，等待用户输入指数
+            } catch (Exception e) {
+                setErrorState("幂计算错误");
             }
-            
-            // 在tokens中添加函数计算结果
-            tokens.add(currentInput);
-            
-            isNewInput = true;
-            
-            // 尝试实时计算结果
-            calculateInRealTime();
-        } catch (Exception e) {
-            setErrorState("计算错误");
         }
     }
 
     /**
-     * 从tokens构建表达式字符串，辅助方法
+     * 计算平方 (x²)
      */
-    private String buildExpressionFromTokens(List<String> tokens) {
-        StringBuilder sb = new StringBuilder();
-        for (String token : tokens) {
-            if (isOperator(token)) {
-                sb.append(" ").append(token).append(" ");
-            } else {
-                sb.append(token);
+    public void calculateSquarePower() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                double result = value * value;
+                
+                // 构建平方表达式
+                String squareExpr = formatNumber(value) + "²";
+                
+                // 替换最后一个数字为平方表达式
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  squareExpr + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("平方计算错误");
             }
         }
-        return sb.toString().trim();
+    }
+
+    /**
+     * 执行取余操作
+     */
+    public void calculateModulo() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                
+                // 添加取余运算符
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                   formatNumber(value) + "%" + 
+                                   displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 不需要立即计算结果，等待用户输入除数
+            } catch (Exception e) {
+                setErrorState("取余计算错误");
+            }
+        }
+    }
+
+    /**
+     * 计算绝对值
+     */
+    public void calculateAbsoluteValue() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                double result = Math.abs(value);
+                
+                // 构建绝对值表达式
+                String absExpr = "|" + formatNumber(value) + "|";
+                
+                // 替换最后一个数字为绝对值表达式
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  absExpr + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("绝对值计算错误");
+            }
+        }
+    }
+    
+    /**
+     * 添加科学计数法表示
+     */
+    public void addScientificNotation() {
+        if (errorState) {
+            clear();
+            return;
+        }
+        
+        // 如果在函数参数输入模式
+        if (isInFunctionInput) {
+            completeFunctionInput();
+        }
+        
+        // 提取最后一个数字
+        String lastNumber = extractLastNumber();
+        if (!lastNumber.isEmpty()) {
+            try {
+                double value = Double.parseDouble(lastNumber);
+                
+                // 将数值转换为科学计数法格式 - 使用自定义格式确保清晰度
+                // 使用小括号包围整个科学计数法表示，避免与加法混淆
+                // 格式：(1.23e+4) 而不是 1.23e+4
+                String sciNotation = String.format("(%.2e)", value);
+                
+                // 替换最后一个数字为科学计数法表示
+                int lastPos = displayExpression.lastIndexOf(lastNumber);
+                displayExpression = displayExpression.substring(0, lastPos) + 
+                                  sciNotation + 
+                                  displayExpression.substring(lastPos + lastNumber.length());
+                
+                // 尝试实时计算结果
+                tryCalculateResult();
+            } catch (Exception e) {
+                setErrorState("科学计数法转换错误");
+            }
+        }
     }
 } 

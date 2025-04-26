@@ -19,4 +19,5 @@
 3. 进一步优化布局模仿小米计算器
 ···
 ![url](Screenshot_2025-04-21-10-28-17-659_com.miui.calcu.jpg)
-```
+
+![url](cadd58b9-33ea-4637-ad7b-1ced8d1f286a.png)
