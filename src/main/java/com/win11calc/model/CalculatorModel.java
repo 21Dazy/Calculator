@@ -24,7 +24,6 @@ public class CalculatorModel {
 
     // 状态标记
     private boolean isInFunctionInput = false; // 是否在输入函数参数
-    private String currentFunctionName = ""; // 当前函数名
     private int functionParenthesisPos = -1; // 函数左括号位置
 
     // 添加一个用于记录角度模式的字段，默认使用弧度制
@@ -292,7 +291,6 @@ public class CalculatorModel {
         // 添加函数名和左括号
         displayExpression += functionName + "(";
         isInFunctionInput = true;
-        currentFunctionName = functionName;
         functionParenthesisPos = displayExpression.length() - 1;
     }
 
@@ -315,7 +313,6 @@ public class CalculatorModel {
 
         // 重置函数输入状态
         isInFunctionInput = false;
-        currentFunctionName = "";
         functionParenthesisPos = -1;
 
         // 尝试实时计算结果
@@ -382,7 +379,6 @@ public class CalculatorModel {
 
             // 更新当前结果和表达式
             currentResult = formatNumber(result);
-            String oldExpression = displayExpression;
             displayExpression = currentResult;
 
             // 触发结果更新事件（如果有监听器）
@@ -448,7 +444,6 @@ public class CalculatorModel {
         errorState = false;
         errorMessage = "";
         isInFunctionInput = false;
-        currentFunctionName = "";
         functionParenthesisPos = -1;
     }
 
@@ -458,7 +453,6 @@ public class CalculatorModel {
     public void clearEntry() {
         if (isInFunctionInput) {
             // 仅清除函数参数
-            String parameter = extractFunctionParameter();
             replaceFunctionParameter("");
         } else {
             // 清除最后输入的数字或操作符
@@ -502,7 +496,6 @@ public class CalculatorModel {
                 if (lastOpenParen == -1 || !isFunctionName(displayExpression.substring(0, lastOpenParen))) {
                     // 如果没有左括号或括号前不是函数名，退出函数输入模式
                     isInFunctionInput = false;
-                    currentFunctionName = "";
                     functionParenthesisPos = -1;
                 }
             }
@@ -1316,7 +1309,6 @@ public class CalculatorModel {
         if (!lastNumber.isEmpty()) {
             try {
                 double value = Double.parseDouble(lastNumber);
-                double result = value * value;
                 
                 // 构建平方表达式
                 String squareExpr = formatNumber(value) + "²";
@@ -1359,8 +1351,6 @@ public class CalculatorModel {
                     setErrorState("除数不能为零");
                     return;
                 }
-                
-                double result = 1 / value;
                 
                 // 构建倒数表达式
                 String reciprocalExpr = "1/(" + formatNumber(value) + ")";
@@ -1541,7 +1531,7 @@ public class CalculatorModel {
     }
 
     /**
-     * 计算平方 (x²)
+     * 计算平方（使用 x² 按钮）
      */
     public void calculateSquarePower() {
         if (errorState) {
@@ -1559,7 +1549,6 @@ public class CalculatorModel {
         if (!lastNumber.isEmpty()) {
             try {
                 double value = Double.parseDouble(lastNumber);
-                double result = value * value;
                 
                 // 构建平方表达式
                 String squareExpr = formatNumber(value) + "²";
@@ -1630,7 +1619,6 @@ public class CalculatorModel {
         if (!lastNumber.isEmpty()) {
             try {
                 double value = Double.parseDouble(lastNumber);
-                double result = Math.abs(value);
                 
                 // 构建绝对值表达式
                 String absExpr = "|" + formatNumber(value) + "|";

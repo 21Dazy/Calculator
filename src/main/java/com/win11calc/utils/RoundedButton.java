@@ -4,8 +4,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ConvolveOp;
-import java.awt.image.Kernel;
 
 /**
  * 自定义圆角按钮
@@ -191,8 +189,6 @@ public class RoundedButton extends JButton {
      * 应用macOS样式阴影
      */
     private void applyMacOSShadow(Graphics2D g2, RoundRectangle2D shape) {
-        int blurRadius = UIConfig.BUTTON_SHADOW_DEPTH;
-        
         // 绘制轻微的内部阴影
         g2.setColor(new Color(0, 0, 0, 10));
         g2.setStroke(new BasicStroke(1.0f));
