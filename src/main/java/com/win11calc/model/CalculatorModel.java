@@ -17,8 +17,6 @@ public class CalculatorModel {
     private List<String> history = new ArrayList<>();
     private boolean replaceExpressionWithResult = false; // 等号按下后，用结果替换表达式
 
-    // 用于构建表达式的变量
-    private StringBuilder expressionBuilder = new StringBuilder();
     private List<String> tokens = new ArrayList<>(); // 存储表达式的token
     
     // 函数输入支持
@@ -70,6 +68,7 @@ public class CalculatorModel {
      * 添加数字到当前输入
      * @param digit 数字字符
      */
+
     public void addDigit(String digit) {
         if (errorState) {
             clear();
@@ -187,6 +186,8 @@ public class CalculatorModel {
      * @param operation 计算操作
      */
     public void setOperation(CalculatorOperation operation) {
+        System.err.println("tokens: " + tokens);
+        System.err.println("isNewInput " + isNewInput);
         if (errorState) {
             return;
         }
@@ -443,6 +444,7 @@ public class CalculatorModel {
             }
         }
         displayExpression = sb.toString().trim();
+        System.err.println("更新表达式: " + displayExpression);
     }
     
     /**
@@ -636,6 +638,12 @@ public class CalculatorModel {
             completeFunctionInput();
         }
         
+        // 如果当前正在输入一个数字（不是新输入状态），先将其添加到tokens
+        if (!isNewInput && !tokens.isEmpty() && !isOperator(tokens.get(tokens.size() - 1))) {
+            tokens.add(currentInput);
+            isNewInput = true;
+        }
+        
         // 进入平方根函数输入模式
         inFunctionInput = true;
         currentFunction = "√";
@@ -771,6 +779,12 @@ public class CalculatorModel {
         // 如果当前在输入函数参数，先完成上一个函数的计算
         if (inFunctionInput) {
             completeFunctionInput();
+        }
+        
+        // 如果当前正在输入一个数字（不是新输入状态），先将其添加到tokens
+        if (!isNewInput && !tokens.isEmpty() && !isOperator(tokens.get(tokens.size() - 1))) {
+            tokens.add(currentInput);
+            isNewInput = true;
         }
         
         // 进入三角函数输入模式
@@ -911,6 +925,12 @@ public class CalculatorModel {
             completeFunctionInput();
         }
         
+        // 如果当前正在输入一个数字（不是新输入状态），先将其添加到tokens
+        if (!isNewInput && !tokens.isEmpty() && !isOperator(tokens.get(tokens.size() - 1))) {
+            tokens.add(currentInput);
+            isNewInput = true;
+        }
+        
         // 进入对数函数输入模式
         inFunctionInput = true;
         currentFunction = "lg";
@@ -931,6 +951,12 @@ public class CalculatorModel {
         // 如果当前在输入函数参数，先完成上一个函数的计算
         if (inFunctionInput) {
             completeFunctionInput();
+        }
+        
+        // 如果当前正在输入一个数字（不是新输入状态），先将其添加到tokens
+        if (!isNewInput && !tokens.isEmpty() && !isOperator(tokens.get(tokens.size() - 1))) {
+            tokens.add(currentInput);
+            isNewInput = true;
         }
         
         // 进入自然对数函数输入模式
@@ -1084,38 +1110,6 @@ public class CalculatorModel {
         }
     }
     
-    /**
-     * 更新显示表达式
-     */
-    private void updateDisplayExpression() {
-        // 如果是刚刚清除过或者表达式为空，直接使用当前输入
-        if (displayExpression.isEmpty()) {
-            displayExpression = currentInput;
-        } else if (displayExpression.endsWith(" ")) {
-            // 如果表达式以空格结尾，说明上一个是操作符，附加当前输入
-            displayExpression += currentInput;
-        } else {
-            // 否则，更新最后一个数字
-            int lastOpIndex = Math.max(
-                displayExpression.lastIndexOf(" + "),
-                Math.max(
-                    displayExpression.lastIndexOf(" - "),
-                    Math.max(
-                        displayExpression.lastIndexOf(" × "),
-                        displayExpression.lastIndexOf(" ÷ ")
-                    )
-                )
-            );
-            
-            if (lastOpIndex >= 0) {
-                // 有操作符，用当前输入替换操作符后的内容
-                displayExpression = displayExpression.substring(0, lastOpIndex + 3) + currentInput;
-            } else {
-                // 没有操作符，整个表达式就是当前输入
-                displayExpression = currentInput;
-            }
-        }
-    }
     
     /**
      * 内存存储 (MS)
@@ -1224,7 +1218,23 @@ public class CalculatorModel {
     private void updateFunctionExpression() {
         // 构建函数表达式，例如：sin(45)
         String arg = functionArgument.isEmpty() ? "" : functionArgument;
-        displayExpression = currentFunction + "(" + arg + ")";
+        String functionExpr = currentFunction + "(" + arg + ")";
+        
+        // 检查当前表达式的状态
+        if (tokens.isEmpty()) {
+            // 如果tokens为空，这是一个全新的计算
+            displayExpression = functionExpr;
+        } else if (!tokens.isEmpty() && isOperator(tokens.get(tokens.size() - 1))) {
+            // 如果最后一个token是操作符，保留之前的表达式，并添加函数表达式
+            displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
+        } else {
+            // 其他情况，保留之前的表达式，并替换最后一个token
+            if (!tokens.isEmpty()) {
+                tokens.remove(tokens.size() - 1);
+            }
+            displayExpression = buildExpressionFromTokens(tokens) + functionExpr;
+        }
+        
         currentInput = arg.isEmpty() ? "0" : arg;
     }
     
