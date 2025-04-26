@@ -6,6 +6,8 @@ import com.win11calc.model.CalculatorOperation;
 import com.win11calc.utils.ColorScheme;
 import com.win11calc.utils.RoundedButton;
 import com.win11calc.utils.RoundedPanel;
+import com.win11calc.utils.ThemeManager;
+import com.win11calc.utils.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -49,6 +51,9 @@ public class CalculatorFrame extends JFrame {
         model = new CalculatorModel();
         controller = new CalculatorController(model, this);
         
+        // 加载主题设置
+        ThemeManager.loadSettings();
+        
         initFrame();
         initComponents();
         initKeyListener();
@@ -65,22 +70,42 @@ public class CalculatorFrame extends JFrame {
         menuBar = new JMenuBar();
         JMenu modeMenu = new JMenu("模式");
         JMenu helpMenu = new JMenu("帮助");
-        JMenu SetMenu = new JMenu("设置");
+        JMenu setMenu = new JMenu("设置");
         
-        
-
+        // 计算器模式菜单项
         JMenuItem standardModeItem = new JMenuItem("标准计算器");
         JMenuItem scientificModeItem = new JMenuItem("科学计算器");
 
+        // 帮助菜单项
         JMenuItem aboutItem = new JMenuItem("关于");
         aboutItem.addActionListener(e -> {
             JOptionPane.showMessageDialog(this, "作者：21Dazy\n版本：1.0.0\n发布日期：2025-4-15", "关于", JOptionPane.INFORMATION_MESSAGE);
         });
         
-        JMenuItem settingsItem = new JMenuItem("主题设置");
+        // 设置菜单项
+        JMenuItem themeSettingsItem = new JMenuItem("主题设置");
+        JMenu uiStyleMenu = new JMenu("界面风格");
+        
+        // 界面风格子菜单
+        JMenuItem macStyleItem = new JMenuItem("macOS风格");
+        JMenuItem winStyleItem = new JMenuItem("Windows风格");
+        
+        // 添加界面风格切换事件监听
+        macStyleItem.addActionListener(e -> {
+            ThemeManager.applyTheme(ThemeManager.Theme.MACOS);
+            updateUIStyle();
+        });
+        
+        winStyleItem.addActionListener(e -> {
+            ThemeManager.applyTheme(ThemeManager.Theme.WINDOWS);
+            updateUIStyle();
+        });
+        
+        // 添加界面风格子菜单项
+        uiStyleMenu.add(macStyleItem);
+        uiStyleMenu.add(winStyleItem);
 
-
-
+        // 计算器模式事件监听
         standardModeItem.addActionListener(e -> {
             if (isScientificMode) {
                 toggleMode();
@@ -93,57 +118,154 @@ public class CalculatorFrame extends JFrame {
             }
         });
 
-        settingsItem.addActionListener(e -> {
+        // 颜色自定义设置
+        themeSettingsItem.addActionListener(e -> {
             Color newColor = JColorChooser.showDialog(this, "主题设置", ColorScheme.BACKGROUND);
             if (newColor != null) {
                 ColorScheme.BACKGROUND = newColor;
-                displayPanel.setBackground(ColorScheme.DISPLAY_BACKGROUND);
-                resultLabel.setForeground(ColorScheme.DISPLAY_TEXT);
-                expressionLabel.setForeground(ColorScheme.EXPRESSION_TEXT);
-                for (Component component : standardPanel.getComponents()) {
-                    if (component instanceof RoundedButton) {
-                        ((RoundedButton) component).updateBackground(newColor);
-                    }
-                }
-                for (Component component : scientificPanel.getComponents()) {
-                    if (component instanceof RoundedButton) {
-                        ((RoundedButton) component).updateBackground(newColor);
-                    }
-                }
+                updateUIStyle();
             }
         });
 
-        //模式·菜单
+        // 模式菜单
         modeMenu.add(standardModeItem);
         modeMenu.add(scientificModeItem);
 
-        //菜单栏
+        // 菜单栏
         menuBar.add(modeMenu);
         menuBar.add(helpMenu);
-        menuBar.add(SetMenu);
+        menuBar.add(setMenu);
 
-        //帮助·菜单
+        // 帮助菜单
         helpMenu.add(aboutItem);
 
-        //设置·菜单
-        SetMenu.add(settingsItem);
+        // 设置菜单
+        setMenu.add(uiStyleMenu);
+        setMenu.add(themeSettingsItem);
         
         setJMenuBar(menuBar);
     }
-
+    
+    /**
+     * 更新UI风格
+     */
+    private void updateUIStyle() {
+        // 更新组件字体
+        updateFonts(this);
+        
+        // 更新按钮圆角和外观
+        updateButtons();
+        
+        // 更新显示面板
+        updateDisplayPanel();
+        
+        // 刷新整个UI
+        ThemeManager.refreshUI(this);
+    }
+    
+    /**
+     * 更新组件字体
+     */
+    private void updateFonts(Container container) {
+        Font baseFont = new Font(UIConfig.FONT_NAME, Font.PLAIN, 16);
+        
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JLabel) {
+                JLabel label = (JLabel) comp;
+                if (label == resultLabel) {
+                    // 结果标签使用较大字体
+                    label.setFont(new Font(UIConfig.FONT_NAME, Font.BOLD, 60));
+                } else if (label == expressionLabel) {
+                    // 表达式标签使用较小字体
+                    label.setFont(new Font(UIConfig.FONT_NAME, Font.PLAIN, 18));
+                } else {
+                    label.setFont(baseFont);
+                }
+            } else if (comp instanceof JButton) {
+                comp.setFont(baseFont);
+            } else if (comp instanceof Container) {
+                updateFonts((Container) comp);
+            }
+        }
+    }
+    
+    /**
+     * 更新所有按钮的外观
+     */
+    private void updateButtons() {
+        // 更新标准面板按钮
+        updatePanelButtons(standardPanel);
+        
+        // 更新科学面板按钮
+        updatePanelButtons(scientificPanel);
+    }
+    
+    /**
+     * 更新面板中的按钮
+     */
+    private void updatePanelButtons(JPanel panel) {
+        if (panel == null) return;
+        
+        for (Component comp : panel.getComponents()) {
+            if (comp instanceof RoundedButton) {
+                RoundedButton button = (RoundedButton) comp;
+                
+                // 根据按钮文本决定背景色
+                String text = button.getText().toLowerCase();
+                if (text.matches("[0-9]")) {
+                    button.setBackground(ColorScheme.NUMBER_BUTTON_BACKGROUND);
+                } else if (text.equals("+") || text.equals("-") || 
+                          text.equals("×") || text.equals("÷")) {
+                    button.setBackground(ColorScheme.OPERATION_BUTTON_BACKGROUND);
+                } else if (text.equals("=")) {
+                    button.setBackground(ColorScheme.EQUALS_BUTTON_BACKGROUND);
+                    button.setForeground(ColorScheme.EQUALS_BUTTON_TEXT);
+                } else {
+                    button.setBackground(ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+                }
+                
+                // 更新字体
+                button.setFont(new Font(UIConfig.FONT_NAME, Font.PLAIN, 16));
+                
+                // 更新文本颜色
+                if (!text.equals("=")) {
+                    button.setForeground(ColorScheme.BUTTON_TEXT);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 更新显示面板
+     */
+    private void updateDisplayPanel() {
+        if (displayPanel != null) {
+            displayPanel.setBackground(ColorScheme.DISPLAY_BACKGROUND);
+            expressionLabel.setForeground(ColorScheme.EXPRESSION_TEXT);
+            resultLabel.setForeground(ColorScheme.DISPLAY_TEXT);
+        }
+    }
+    
     /**
      * 初始化窗口
      */
     private void initFrame() {
         setTitle("计算器");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(320, 580);
-        setMinimumSize(new Dimension(320, 580));
+        setSize(380, 650);
+        setMinimumSize(new Dimension(380, 650));
         setLocationRelativeTo(null);
         setBackground(ColorScheme.BACKGROUND);
         
+        // 设置系统外观
         try {
-            // 设置Windows系统的应用图标
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            // 忽略错误，使用默认外观
+        }
+        
+        try {
+            // 设置应用图标
             setIconImage(new ImageIcon(getClass().getResource("/calculator_icon.png")).getImage());
         } catch (Exception e) {
             // 图标加载失败，忽略
@@ -347,8 +469,8 @@ public class CalculatorFrame extends JFrame {
      * 添加按钮到面板（指定文本颜色）
      */
     private void addButton(JPanel panel, String text, Action action, Color backgroundColor, Color textColor) {
-        JButton button = new RoundedButton(text, 8);
-         button.setFont(new Font("Microsoft YaHei", Font.PLAIN, 16));
+        JButton button = new RoundedButton(text);
+        button.setFont(new Font(UIConfig.FONT_NAME, Font.PLAIN, 16));
         button.setBackground(backgroundColor);
         button.setForeground(textColor);
         button.setFocusPainted(false);
@@ -361,8 +483,8 @@ public class CalculatorFrame extends JFrame {
      * 添加功能按钮并返回按钮引用
      */
     private JButton addFunctionButton(JPanel panel, String text, Action action, Color backgroundColor) {
-        JButton button = new RoundedButton(text, 8);
-        button.setFont(new Font("Microsoft YaHei", Font.PLAIN, 16));
+        JButton button = new RoundedButton(text);
+        button.setFont(new Font(UIConfig.FONT_NAME, Font.PLAIN, 16));
         button.setBackground(backgroundColor);
         button.setForeground(ColorScheme.BUTTON_TEXT);
         button.setFocusPainted(false);
@@ -611,7 +733,7 @@ public class CalculatorFrame extends JFrame {
         cl.show(standardPanel.getParent(), isScientificMode ? "scientific" : "standard");
         
         // 调整窗口尺寸
-        setSize(320, 580);
+        setSize(380, 650);
         
         // 更新当前活动的按钮引用
         updateActiveButtonReferences();
@@ -822,7 +944,7 @@ public class CalculatorFrame extends JFrame {
             size = Math.max(24, maxSize - (text.length() - 10) * 2);
         }
         
-        label.setFont(new Font("Microsoft YaHei", Font.BOLD, size));
+        label.setFont(new Font(UIConfig.FONT_NAME, Font.BOLD, size));
     }
     
     /**
