@@ -123,6 +123,11 @@ public class RoundedButton extends JButton {
             applyMacOSShadow(g2, roundedRectangle);
         }
         
+        // 如果是小米风格，保持简洁扁平的效果
+        if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.XIAOMI) {
+            applyXiaomiStyle(g2, roundedRectangle);
+        }
+        
         // 释放图形资源
         g2.dispose();
         
@@ -205,6 +210,26 @@ public class RoundedButton extends JButton {
             getWidth() - UIConfig.BUTTON_CORNER_RADIUS / 2, 
             1
         );
+    }
+    
+    /**
+     * 应用小米风格的扁平效果
+     */
+    private void applyXiaomiStyle(Graphics2D g2, RoundRectangle2D shape) {
+        // 小米风格简洁，无额外装饰效果
+        // 只对操作按钮添加极轻微的内阴影，增强触摸感
+        String text = getText();
+        if (text.equals("+") || text.equals("-") || 
+            text.equals("×") || text.equals("÷") || 
+            text.equals("=")) {
+            
+            g2.setColor(new Color(0, 0, 0, 15));
+            g2.setStroke(new BasicStroke(0.5f));
+            g2.draw(new RoundRectangle2D.Float(
+                1, 1, getWidth()-2, getHeight()-2, 
+                UIConfig.BUTTON_CORNER_RADIUS-1, UIConfig.BUTTON_CORNER_RADIUS-1
+            ));
+        }
     }
     
     @Override

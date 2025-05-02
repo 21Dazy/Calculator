@@ -61,6 +61,9 @@ public class CalculatorFrame extends JFrame {
         // 确保所有按钮引用初始化完成后，再设置默认显示和状态
         initButtonReferences();
         setDefaultDisplay();
+        
+        // 初始化完成后，强制应用当前主题到所有区域
+        updateUIStyle();
     }
     
     /**
@@ -87,10 +90,16 @@ public class CalculatorFrame extends JFrame {
         JMenu uiStyleMenu = new JMenu("界面风格");
         
         // 界面风格子菜单
+        JMenuItem xiaomiStyleItem = new JMenuItem("小米风格");
         JMenuItem macStyleItem = new JMenuItem("macOS风格");
         JMenuItem winStyleItem = new JMenuItem("Windows风格");
         
         // 添加界面风格切换事件监听
+        xiaomiStyleItem.addActionListener(e -> {
+            ThemeManager.applyTheme(ThemeManager.Theme.XIAOMI);
+            updateUIStyle();
+        });
+        
         macStyleItem.addActionListener(e -> {
             ThemeManager.applyTheme(ThemeManager.Theme.MACOS);
             updateUIStyle();
@@ -102,8 +111,18 @@ public class CalculatorFrame extends JFrame {
         });
         
         // 添加界面风格子菜单项
+        uiStyleMenu.add(xiaomiStyleItem);
         uiStyleMenu.add(macStyleItem);
         uiStyleMenu.add(winStyleItem);
+
+        // 根据当前主题设置复选标记
+        if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.XIAOMI) {
+            xiaomiStyleItem.setSelected(true);
+        } else if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.MACOS) {
+            macStyleItem.setSelected(true);
+        } else if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.WINDOWS) {
+            winStyleItem.setSelected(true);
+        }
 
         // 计算器模式事件监听
         standardModeItem.addActionListener(e -> {
@@ -150,6 +169,23 @@ public class CalculatorFrame extends JFrame {
      * 更新UI风格
      */
     private void updateUIStyle() {
+        // 设置面板和窗口背景色
+        getContentPane().setBackground(ColorScheme.BACKGROUND);
+        setBackground(ColorScheme.BACKGROUND);
+        
+        // 更新按键区背景
+        if (standardPanel != null) {
+            standardPanel.setBackground(ColorScheme.BACKGROUND);
+        }
+        if (scientificPanel != null) {
+            scientificPanel.setBackground(ColorScheme.BACKGROUND);
+        }
+        
+        // 更新面板容器背景
+        if (standardPanel != null && standardPanel.getParent() != null) {
+            standardPanel.getParent().setBackground(ColorScheme.BACKGROUND);
+        }
+        
         // 更新组件字体
         updateFonts(this);
         
@@ -161,6 +197,9 @@ public class CalculatorFrame extends JFrame {
         
         // 刷新整个UI
         ThemeManager.refreshUI(this);
+        
+        // 确保重绘全部区域
+        repaint();
     }
     
     /**
@@ -213,15 +252,22 @@ public class CalculatorFrame extends JFrame {
                 // 根据按钮文本决定背景色
                 String text = button.getText().toLowerCase();
                 if (text.matches("[0-9]")) {
+                    // 数字按钮
                     button.setBackground(ColorScheme.NUMBER_BUTTON_BACKGROUND);
                 } else if (text.equals("+") || text.equals("-") || 
-                          text.equals("×") || text.equals("÷")) {
+                          text.equals("×") || text.equals("÷") ||
+                          text.equals("*") || text.equals("/")) {
+                    // 运算符按钮
                     button.setBackground(ColorScheme.OPERATION_BUTTON_BACKGROUND);
                 } else if (text.equals("=")) {
+                    // 等号按钮
                     button.setBackground(ColorScheme.EQUALS_BUTTON_BACKGROUND);
                     button.setForeground(ColorScheme.EQUALS_BUTTON_TEXT);
                 } else {
-                    button.setBackground(ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+                    // 功能按钮 (检查是否已经高亮, 如果是则保持高亮)
+                    if (!isButtonHighlighted(button)) {
+                        button.setBackground(ColorScheme.FUNCTION_BUTTON_BACKGROUND);
+                    }
                 }
                 
                 // 更新字体
@@ -233,6 +279,28 @@ public class CalculatorFrame extends JFrame {
                 }
             }
         }
+    }
+    
+    /**
+     * 判断按钮是否已被高亮
+     */
+    private boolean isButtonHighlighted(JButton button) {
+        // 检查是否是2nd模式下的按钮
+        if (isSecondMode) {
+            if (button == sinButton || button == cosButton || button == tanButton ||
+                button == secondButtonStandard || button == secondButtonScientific) {
+                return true;
+            }
+        }
+        
+        // 检查是否是角度模式下的按钮
+        if (!isRadianMode) {
+            if (button == degButtonStandard || button == degButtonScientific) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -279,12 +347,15 @@ public class CalculatorFrame extends JFrame {
     private void initComponents() {
         // 使用BorderLayout布局
         setLayout(new BorderLayout());
+        setBackground(ColorScheme.BACKGROUND);
+        getContentPane().setBackground(ColorScheme.BACKGROUND);
         
         // 初始化显示面板
         initDisplayPanel();
         
         // 初始化按钮面板
         JPanel buttonPanel = new JPanel(new CardLayout());
+        buttonPanel.setBackground(ColorScheme.BACKGROUND);
         
         // 初始化标准计算器面板
         standardPanel = createStandardPanel();
@@ -631,7 +702,8 @@ public class CalculatorFrame extends JFrame {
      * 根据当前的2nd模式状态更新按钮显示
      */
     private void updateButtonsForSecondMode() {
-        Color highlightColor = new Color(255, 165, 0); // 橙色高亮
+        // 使用主题的高亮颜色
+        Color highlightColor = ColorScheme.HIGHLIGHT_COLOR;
         
         if (isSecondMode) {
             // 设置为反三角函数并高亮
@@ -700,7 +772,8 @@ public class CalculatorFrame extends JFrame {
      * 根据当前的角度模式更新按钮显示
      */
     private void updateAngleModeDisplay() {
-        Color highlightColor = new Color(255, 165, 0); // 橙色高亮
+        // 使用主题的高亮颜色
+        Color highlightColor = ColorScheme.HIGHLIGHT_COLOR;
         
         // 更新标准面板的deg按钮
         if (degButtonStandard != null) {

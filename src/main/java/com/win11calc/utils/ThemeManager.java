@@ -7,6 +7,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
 import javax.swing.SwingUtilities;
+import javax.swing.JPanel;
+import javax.swing.JFrame;
 
 /**
  * 主题管理类，用于管理不同UI风格的配色方案和样式
@@ -14,6 +16,7 @@ import javax.swing.SwingUtilities;
 public class ThemeManager {
     // 主题枚举
     public enum Theme {
+        XIAOMI("小米风格"),
         MACOS("macOS风格"),
         WINDOWS("Windows风格");
         
@@ -29,7 +32,7 @@ public class ThemeManager {
     }
     
     // 当前主题
-    private static Theme currentTheme = Theme.MACOS;
+    private static Theme currentTheme = Theme.XIAOMI; // 将小米主题设为默认
     // 配置文件路径
     private static final String CONFIG_FILE = "calculator_config.properties";
     
@@ -49,12 +52,12 @@ public class ThemeManager {
                         currentTheme = Theme.valueOf(themeName);
                     } catch (IllegalArgumentException e) {
                         // 无效的主题名，使用默认值
-                        currentTheme = Theme.MACOS;
+                        currentTheme = Theme.XIAOMI;
                     }
                 }
             } catch (IOException e) {
                 // 读取失败，使用默认值
-                currentTheme = Theme.MACOS;
+                currentTheme = Theme.XIAOMI;
             }
         }
         
@@ -91,6 +94,9 @@ public class ThemeManager {
         currentTheme = theme;
         
         switch (theme) {
+            case XIAOMI:
+                applyXiaomiTheme();
+                break;
             case MACOS:
                 applyMacOSTheme();
                 break;
@@ -101,6 +107,46 @@ public class ThemeManager {
         
         // 保存设置
         saveSettings();
+    }
+    
+    /**
+     * 应用小米风格暗色主题
+     */
+    private static void applyXiaomiTheme() {
+        // 背景颜色
+        ColorScheme.BACKGROUND = new Color(0, 0, 0); // 纯黑色背景
+        
+        // 显示区域背景
+        ColorScheme.DISPLAY_BACKGROUND = new Color(0, 0, 0);  // 纯黑背景
+        
+        // 显示文本颜色
+        ColorScheme.DISPLAY_TEXT = new Color(255, 255, 255);  // 白色显示文本
+        
+        // 表达式文本颜色
+        ColorScheme.EXPRESSION_TEXT = new Color(200, 200, 200);  // 浅灰色表达式文本
+        
+        // 按钮背景颜色
+        ColorScheme.NUMBER_BUTTON_BACKGROUND = new Color(45, 45, 45);  // 深灰色数字按钮背景
+        ColorScheme.OPERATION_BUTTON_BACKGROUND = new Color(255, 140, 0);  // 橙色操作按钮背景（小米风格）
+        ColorScheme.FUNCTION_BUTTON_BACKGROUND = new Color(45, 45, 45);  // 深灰色功能按钮背景
+        ColorScheme.EQUALS_BUTTON_BACKGROUND = new Color(255, 140, 0);  // 橙色等号按钮背景
+        
+        // 按钮文本颜色
+        ColorScheme.BUTTON_TEXT = new Color(255, 255, 255);  // 白色按钮文本
+        ColorScheme.EQUALS_BUTTON_TEXT = new Color(255, 255, 255);  // 白色等号按钮文本
+        
+        // 高亮颜色
+        ColorScheme.HIGHLIGHT_COLOR = new Color(255, 140, 0);  // 橙色高亮
+        
+        // 边框颜色
+        ColorScheme.BORDER_COLOR = new Color(45, 45, 45);  // 与按钮同色边框
+        
+        // 设置按钮圆角
+        UIConfig.BUTTON_CORNER_RADIUS = 24;  // 大圆角按钮
+        UIConfig.PANEL_CORNER_RADIUS = 20;   // 面板圆角
+        
+        // 字体
+        UIConfig.FONT_NAME = "Arial";  // 使用Arial字体
     }
     
     /**
@@ -191,10 +237,20 @@ public class ThemeManager {
         SwingUtilities.updateComponentTreeUI(rootComponent);
         rootComponent.repaint();
         
+        // 检查并更新背景颜色
+        if (rootComponent instanceof JPanel || rootComponent instanceof JFrame) {
+            rootComponent.setBackground(ColorScheme.BACKGROUND);
+        }
+        
         // 遍历所有子组件并重绘
         if (rootComponent instanceof java.awt.Container) {
             java.awt.Container container = (java.awt.Container) rootComponent;
             for (java.awt.Component component : container.getComponents()) {
+                // 更新面板背景色
+                if (component instanceof JPanel) {
+                    component.setBackground(ColorScheme.BACKGROUND);
+                }
+                
                 component.invalidate();
                 component.repaint();
                 

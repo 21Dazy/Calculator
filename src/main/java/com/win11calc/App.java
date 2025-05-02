@@ -16,6 +16,9 @@ public class App {
     public static void main(String[] args) {
         // 在EDT线程中启动应用
         SwingUtilities.invokeLater(() -> {
+            // 强制设置为小米主题
+            ThemeManager.applyTheme(ThemeManager.Theme.XIAOMI);
+            
             // 加载主题设置
             ThemeManager.loadSettings();
             

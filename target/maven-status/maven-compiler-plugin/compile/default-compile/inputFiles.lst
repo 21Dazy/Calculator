@@ -1,8 +1,10 @@
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\App.java
+F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\utils\UIConfig.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\utils\RoundedButton.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\model\CalculatorOperation.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\utils\RoundedPanel.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\utils\ColorScheme.java
+F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\utils\ThemeManager.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\model\CalculatorModel.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\view\CalculatorFrame.java
 F:\CodeStore\Java\Calculator\src\main\java\com\win11calc\controller\CalculatorController.java

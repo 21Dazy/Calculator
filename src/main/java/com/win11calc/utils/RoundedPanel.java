@@ -52,9 +52,12 @@ public class RoundedPanel extends JPanel {
         if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.MACOS) {
             // Mac风格的轻微阴影效果
             applyMacOSShadow(g2, width, height, cornerRadius);
-        } else {
+        } else if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.WINDOWS) {
             // Windows风格的亚克力效果
             applyWindowsEffect(g2, width, height, cornerRadius);
+        } else if (ThemeManager.getCurrentTheme() == ThemeManager.Theme.XIAOMI) {
+            // 小米风格的扁平简洁效果
+            applyXiaomiEffect(g2, width, height, cornerRadius);
         }
         
         // 绘制面板背景
@@ -110,5 +113,16 @@ public class RoundedPanel extends JPanel {
             g2.setColor(new Color(0, 0, 0, 15));
             g2.fillRect(0, height - 5, width, 5);
         }
+    }
+    
+    /**
+     * 应用小米风格的扁平效果
+     */
+    private void applyXiaomiEffect(Graphics2D g2, int width, int height, int cornerRadius) {
+        // 小米风格保持绝对的扁平简洁，不添加任何额外纹理或阴影
+        // 只有边框颜色与背景相近，营造无边框感
+        g2.setColor(new Color(0, 0, 0, 10));
+        g2.setStroke(new BasicStroke(0.5f));
+        g2.draw(new RoundRectangle2D.Float(0, 0, width - 1, height - 1, cornerRadius, cornerRadius));
     }
 } 
