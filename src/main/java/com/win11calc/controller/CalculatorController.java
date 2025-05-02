@@ -39,6 +39,63 @@ public class CalculatorController {
     }
     
     /**
+     * 不进行计算，仅更新视图显示
+     */
+    private void updateViewWithoutCalculation() {
+        if (model.isErrorState()) {
+            view.updateDisplay(model.getErrorMessage(), "错误", "");
+        } else {
+            view.updateDisplay(
+                model.getExpression(),  // 表达式作为主显示
+                model.getExpression(),  // 表达式
+                model.getCurrentResult() // 结果区域显示当前结果
+            );
+        }
+    }
+    
+    /**
+     * 直接设置表达式，但不进行计算
+     * 用于粘贴操作
+     * @param expression 要设置的表达式
+     */
+    public void setExpressionDirectly(String expression) {
+        // 首先清除当前状态
+        model.clear();
+        
+        // 设置新的表达式到模型
+        // 这里我们需要一个字符一个字符地添加，以确保表达式格式正确
+        for (int i = 0; i < expression.length(); i++) {
+            char c = expression.charAt(i);
+            
+            if (Character.isDigit(c)) {
+                // 数字
+                model.addDigit(String.valueOf(c));
+            } else if (c == '.') {
+                // 小数点
+                model.addDecimalPoint();
+            } else if (c == '+') {
+                model.setOperation(CalculatorOperation.ADD);
+            } else if (c == '-') {
+                model.setOperation(CalculatorOperation.SUBTRACT);
+            } else if (c == '*' || c == '×') {
+                model.setOperation(CalculatorOperation.MULTIPLY);
+            } else if (c == '/' || c == '÷') {
+                model.setOperation(CalculatorOperation.DIVIDE);
+            } else if (c == '(') {
+                model.addLeftParenthesis();
+            } else if (c == ')') {
+                model.addRightParenthesis();
+            } else if (c == '%') {
+                model.calculatePercent();
+            }
+            // 忽略其他字符
+        }
+        
+        // 更新视图，但不触发计算
+        updateViewWithoutCalculation();
+    }
+    
+    /**
      * 添加数字
      * @param digit 数字字符
      */

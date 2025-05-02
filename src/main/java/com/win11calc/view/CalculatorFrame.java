@@ -11,7 +11,11 @@ import com.win11calc.utils.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 
@@ -74,6 +78,7 @@ public class CalculatorFrame extends JFrame {
         JMenu modeMenu = new JMenu("模式");
         JMenu helpMenu = new JMenu("帮助");
         JMenu setMenu = new JMenu("设置");
+        JMenu editMenu = new JMenu("编辑");  // 新增编辑菜单
         
         // 计算器模式菜单项
         JMenuItem standardModeItem = new JMenuItem("标准计算器");
@@ -84,6 +89,24 @@ public class CalculatorFrame extends JFrame {
         aboutItem.addActionListener(e -> {
             JOptionPane.showMessageDialog(this, "作者：21Dazy\n版本：1.0.0\n发布日期：2025-4-15", "关于", JOptionPane.INFORMATION_MESSAGE);
         });
+        
+        // 编辑菜单项
+        JMenuItem copyItem = new JMenuItem("复制");
+        JMenuItem pasteItem = new JMenuItem("粘贴");
+        
+        // 设置复制菜单项的快捷键
+        copyItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK));
+        pasteItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK));
+        
+        // 复制功能：复制"表达式=结果"
+        copyItem.addActionListener(e -> copyToClipboard());
+        
+        // 粘贴功能：粘贴内容到表达式
+        pasteItem.addActionListener(e -> pasteFromClipboard());
+        
+        // 编辑菜单
+        editMenu.add(copyItem);
+        editMenu.add(pasteItem);
         
         // 设置菜单项
         JMenuItem themeSettingsItem = new JMenuItem("主题设置");
@@ -152,6 +175,7 @@ public class CalculatorFrame extends JFrame {
 
         // 菜单栏
         menuBar.add(modeMenu);
+        menuBar.add(editMenu);  // 添加编辑菜单到菜单栏
         menuBar.add(helpMenu);
         menuBar.add(setMenu);
 
@@ -163,6 +187,98 @@ public class CalculatorFrame extends JFrame {
         setMenu.add(themeSettingsItem);
         
         setJMenuBar(menuBar);
+    }
+    
+    /**
+     * 复制当前计算内容到剪贴板
+     * 格式为：表达式=结果
+     */
+    private void copyToClipboard() {
+        try {
+            String expression = expressionLabel.getText();
+            String result = resultLabel.getText();
+            
+            // 检查是否有表达式和结果可复制
+            if (expression.isEmpty() && "0".equals(result)) {
+                return; // 没有内容可复制
+            }
+            
+            // 创建复制内容
+            String copyContent;
+            if (expression.isEmpty()) {
+                // 只有结果
+                copyContent = result;
+            } else {
+                // 表达式和结果
+                copyContent = expression + " = " + result;
+            }
+            
+            // 创建StringSelection
+            StringSelection selection = new StringSelection(copyContent);
+            
+            // 获取系统剪贴板
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            
+            // 设置剪贴板内容
+            clipboard.setContents(selection, null);
+            
+            // 可以添加一个短暂的提示（可选）
+            JOptionPane.showMessageDialog(this, "已复制: " + copyContent, "复制成功", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "复制失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * 从剪贴板粘贴内容到表达式区
+     */
+    private void pasteFromClipboard() {
+        try {
+            // 获取系统剪贴板
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            
+            // 检查剪贴板是否包含文本
+            if (clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)) {
+                // 获取剪贴板内容
+                String clipboardText = (String) clipboard.getData(DataFlavor.stringFlavor);
+                
+                // 如果内容不为空
+                if (clipboardText != null && !clipboardText.isEmpty()) {
+                    // 处理粘贴内容
+                    processPastedText(clipboardText);
+                }
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "粘贴失败: " + e.getMessage(), "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    /**
+     * 处理粘贴的内容
+     * @param pastedText 粘贴的文本
+     */
+    private void processPastedText(String pastedText) {
+        // 去除所有空格
+        pastedText = pastedText.replaceAll("\\s+", "");
+        
+        // 检查内容是否包含"="
+        if (pastedText.contains("=")) {
+            // 如果包含等号，只取等号前的内容作为表达式
+            String[] parts = pastedText.split("=");
+            if (parts.length > 0) {
+                // 设置表达式
+                controller.setExpressionDirectly(parts[0]);
+                
+                // 显示提示消息
+                JOptionPane.showMessageDialog(this, "已粘贴表达式: " + parts[0], "粘贴成功", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } else {
+            // 如果不包含等号，整个内容作为表达式
+            controller.setExpressionDirectly(pastedText);
+            
+            // 显示提示消息
+            JOptionPane.showMessageDialog(this, "已粘贴表达式: " + pastedText, "粘贴成功", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
     
     /**
