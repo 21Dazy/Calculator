@@ -381,8 +381,6 @@ public class CalculatorModel {
             currentResult = formatNumber(result);
             displayExpression = currentResult;
 
-            // 触发结果更新事件（如果有监听器）
-            // notifyResultCalculated(oldExpression, currentResult);
         } catch (Exception e) {
             setErrorState("计算错误: " + e.getMessage());
         }

@@ -109,7 +109,6 @@ public class CalculatorFrame extends JFrame {
         editMenu.add(pasteItem);
         
         // 设置菜单项
-        JMenuItem themeSettingsItem = new JMenuItem("主题设置");
         JMenu uiStyleMenu = new JMenu("界面风格");
         
         // 界面风格子菜单
@@ -160,14 +159,7 @@ public class CalculatorFrame extends JFrame {
             }
         });
 
-        // 颜色自定义设置
-        themeSettingsItem.addActionListener(e -> {
-            Color newColor = JColorChooser.showDialog(this, "主题设置", ColorScheme.BACKGROUND);
-            if (newColor != null) {
-                ColorScheme.BACKGROUND = newColor;
-                updateUIStyle();
-            }
-        });
+        
 
         // 模式菜单
         modeMenu.add(standardModeItem);
@@ -184,7 +176,6 @@ public class CalculatorFrame extends JFrame {
 
         // 设置菜单
         setMenu.add(uiStyleMenu);
-        setMenu.add(themeSettingsItem);
         
         setJMenuBar(menuBar);
     }
