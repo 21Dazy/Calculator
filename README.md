@@ -1,4 +1,4 @@
-# Windows 11 风格计算器
+# 简单的GUI计算器
 
 基于Java Swing实现的现代化计算器应用程序，支持多种主题风格UI，具有完整的计算功能及主题切换功能。
 
@@ -134,15 +134,6 @@ java -jar target/Win11Calculator-1.0-SNAPSHOT-jar-with-dependencies.jar
 - 无效输入会在结果区域显示错误提示
 - 除零错误、括号不匹配等会有明确提示
 - 应用会自动恢复并允许用户继续输入
-
-## 贡献与开发
-我们欢迎各种形式的贡献，包括错误报告、功能请求、文档改进或代码贡献。
-如需贡献，请遵循以下步骤：
-1. Fork本仓库
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建Pull Request
 
 ## 许可证
 该项目采用MIT许可证 - 详情请参阅 [LICENSE](LICENSE) 文件 
