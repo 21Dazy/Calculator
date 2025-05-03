@@ -1,4 +1,4 @@
-package com.win11calc.model;
+package com.dazycalc.model;
 
 /**
  * 计算器操作枚举类

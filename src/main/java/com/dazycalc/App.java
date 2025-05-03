@@ -4,10 +4,10 @@
  * 日期： 2025-04-15
  * 描述： 计算器应用程序入口类
  */
-package com.win11calc;
+package com.dazycalc;
 
-import com.win11calc.utils.ThemeManager;
-import com.win11calc.view.CalculatorFrame;
+import com.dazycalc.utils.ThemeManager;
+import com.dazycalc.view.CalculatorFrame;
 
 import javax.swing.SwingUtilities;
 

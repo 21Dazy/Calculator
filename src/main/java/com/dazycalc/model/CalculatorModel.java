@@ -1,4 +1,4 @@
-package com.win11calc.model;
+package com.dazycalc.model;
 
 import java.util.ArrayList;
 import java.util.List;

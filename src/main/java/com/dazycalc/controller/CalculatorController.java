@@ -1,8 +1,8 @@
-package com.win11calc.controller;
+package com.dazycalc.controller;
 
-import com.win11calc.model.CalculatorModel;
-import com.win11calc.model.CalculatorOperation;
-import com.win11calc.view.CalculatorFrame;
+import com.dazycalc.model.CalculatorModel;
+import com.dazycalc.model.CalculatorOperation;
+import com.dazycalc.view.CalculatorFrame;
 
 /**
  * 计算器控制器，连接模型和视图

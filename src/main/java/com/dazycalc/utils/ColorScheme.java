@@ -1,4 +1,4 @@
-package com.win11calc.utils;
+package com.dazycalc.utils;
 
 import java.awt.Color;
 

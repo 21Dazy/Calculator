@@ -1,13 +1,13 @@
-package com.win11calc.view;
+package com.dazycalc.view;
 
-import com.win11calc.controller.CalculatorController;
-import com.win11calc.model.CalculatorModel;
-import com.win11calc.model.CalculatorOperation;
-import com.win11calc.utils.ColorScheme;
-import com.win11calc.utils.RoundedButton;
-import com.win11calc.utils.RoundedPanel;
-import com.win11calc.utils.ThemeManager;
-import com.win11calc.utils.UIConfig;
+import com.dazycalc.controller.CalculatorController;
+import com.dazycalc.model.CalculatorModel;
+import com.dazycalc.model.CalculatorOperation;
+import com.dazycalc.utils.ColorScheme;
+import com.dazycalc.utils.RoundedButton;
+import com.dazycalc.utils.RoundedPanel;
+import com.dazycalc.utils.ThemeManager;
+import com.dazycalc.utils.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;

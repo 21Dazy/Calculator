@@ -1,4 +1,4 @@
-package com.win11calc.utils;
+package com.dazycalc.utils;
 
 /**
  * UI配置类，用于存储UI相关的配置参数
